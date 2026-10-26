@@ -234,6 +234,7 @@ details.done .card{opacity:.85;margin-top:8px}
 .lcard .btn{justify-content:center;padding:11px}
 .out{background:var(--paper);color:var(--ink-2);font-weight:500}
 .row2{display:flex;gap:8px}.row2 label{flex:1;display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink-2)}
+.bud textarea{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:14px var(--f-body);background:var(--paper);color:var(--ink);width:100%;box-sizing:border-box;min-height:64px;resize:vertical}
 .bud input{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:14px var(--f-body);background:var(--paper);color:var(--ink);width:100%;box-sizing:border-box}
 .dlink{display:inline-block;margin-top:6px;font-size:12.5px;font-weight:600;color:var(--accent,#2b55c9)}
 .deliv{margin:2px 0 6px;font-size:12.5px}.deliv summary{cursor:pointer;color:var(--ink-2)}
@@ -265,13 +266,8 @@ details.done .card{opacity:.85;margin-top:8px}
     <nav class="nav" id="nav"></nav>
     <div class="clock">
       <span class="t" id="clockT">09:00</span>
-      <span class="d" id="clockD">第 1 天</span>
-      <div class="seg" id="speed" role="group" aria-label="时间速度">
-        <button data-s="0" aria-label="暂停">❚❚</button>
-        <button data-s="1" class="on">1×</button>
-        <button data-s="3">3×</button>
-        <button data-s="8">8×</button>
-      </div>
+      <span class="d" id="clockD"></span>
+      <span class="d" title="新加坡时间">SGT</span>
     </div>
     <span class="spacer"></span>
     <button class="btn pend" id="pendBtn" data-n="0">待你审批 <span id="pendN">0</span></button>
@@ -1008,6 +1004,12 @@ const STORE='agent-office-v5';
 let S=null;
 const live={};
 let meeting=[],speed=1,selId=null,selB=null,follow=false,mode='world',viewKey=null;
+/* real Singapore time: day = days since 1970 (SGT), clock = minutes since midnight */
+function realNow(){const t=new Date(Date.now()+8*3600e3);return{day:Math.floor(t.getTime()/864e5),min:t.getUTCHours()*60+t.getUTCMinutes()+t.getUTCSeconds()/60};}
+const dayOf=iso=>Math.floor((Date.parse(iso)+8*3600e3)/864e5);
+const WK='日一二三四五六';
+function dl(d){if(!d||d<10000)return '早前';if(S&&d===S.day)return '今天';if(S&&d===S.day-1)return '昨天';const t=new Date(d*864e5);return `${t.getUTCMonth()+1}月${t.getUTCDate()}日`;}
+function dlong(d){const t=new Date(d*864e5);return `${t.getUTCFullYear()}年${t.getUTCMonth()+1}月${t.getUTCDate()}日 周${WK[t.getUTCDay()]}`;}
 function hhmm(m){m=Math.floor(m);return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}
 const SB_URL='https://nabuuerjahwjsxsfgiuy.supabase.co',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hYnV1ZXJqYWh3anN4c2ZnaXV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwMjA4NTUsImV4cCI6MjEwODU5Njg1NX0.LKFa8kyz1cbajzC5rAluq34LL3_TPnbGIbEI2XJYgBY';
 let sbc=null;try{if(window.supabase&&location.protocol.startsWith('http')&&!/claudeusercontent|claude\.ai/.test(location.host))sbc=window.supabase.createClient(SB_URL,SB_KEY);}catch(e){sbc=null;}
@@ -1087,7 +1089,7 @@ function startWork(r,task){
   r.sub=sub;
   goTo(r,deskOf(r),'work',t,sub?ri(40,70):ri(45,110));
   if(!task)modelCall(r,t,sub);
-  if(!task&&!sub&&Math.random()<0.25){const ok=S.vault.filter(v=>v.roles.includes(r.a.role)&&!v.approval&&!S.models.some(m=>m.vault===v.id));if(ok.length){const v=pick(ok);v.uses++;v.last=`第${S.day}天 ${hhmm(S.clock)} · ${r.a.name}`;}}
+  if(!task&&!sub&&Math.random()<0.25){const ok=S.vault.filter(v=>v.roles.includes(r.a.role)&&!v.approval&&!S.models.some(m=>m.vault===v.id));if(ok.length){const v=pick(ok);v.uses++;v.last=`${dl(S.day)} ${hhmm(S.clock)} · ${r.a.name}`;}}
   if(!task&&Math.random()<0.02)burst(r);
 }
 function nextActivity(r){
@@ -1172,7 +1174,7 @@ function resolve(id,choice,kind,note){
     r.decId=null;r.follow=kind==='yes'?'执行：'+d.title.replace(/^(会议结论|最终审批)：/,''):'根据 Dave 的反馈调整';
     r.bubble={txt:kind==='yes'?'收到，马上执行':'明白，我去调整',until:performance.now()+2600};
     if(r.act==='report'&&!r.path.length){release(r);startWork(r);}
-    if(kind==='yes'&&r.a.role==='finance'){const v=S.vault.find(v=>v.id==='v6');if(v){v.uses++;v.last=`第${S.day}天 ${hhmm(S.clock)} · ${r.a.name}（已获你批准）`;}}
+    if(kind==='yes'&&r.a.role==='finance'){const v=S.vault.find(v=>v.id==='v6');if(v){v.uses++;v.last=`${dl(S.day)} ${hhmm(S.clock)} · ${r.a.name}（已获你批准）`;}}
   }
   if(d.taskId&&!d.real){const T=S.tasks.find(t=>t.id===d.taskId);if(T){T.status=kind==='yes'?'done':'rework';if(kind!=='yes'){T.subs.forEach(s=>{if(s.dept!=='项目管理'){s.status='todo';s.left=ri(30,60);}});T.status='active';}}renderTasks();}
   if(d.budget&&kind==='yes'){S.budget.cap+=1000;}
@@ -1255,7 +1257,7 @@ function modelCall(r,why,sub){
 function charge(r,m,sub,n){
   n=n||1;m.calls+=n;const c=m.cost*n;S.cost[m.host]+=c;S.budget.used+=c;r.a.spend=(r.a.spend||0)+c;r.model=m.name;
   if(sub){const T=S.tasks.find(t=>t.id===sub.task);if(T)T.cost+=c;}
-  if(m.vault){const v=S.vault.find(v=>v.id===m.vault);if(v){v.uses+=n;v.last=`第${S.day}天 ${hhmm(S.clock)} · ${r.a.name}`;}}
+  if(m.vault){const v=S.vault.find(v=>v.id===m.vault);if(v){v.uses+=n;v.last=`${dl(S.day)} ${hhmm(S.clock)} · ${r.a.name}`;}}
   for(let i=0;i<n;i++)r.calls.push(S.clock);if(r.calls.length>40)r.calls.splice(0,r.calls.length-40);
   if(!S.budget.warned&&S.budget.used>S.budget.cap*0.8){S.budget.warned=true;const pm=pmAgent();
     addDecision({agentId:pm?pm.a.id:'',agentName:pm?pm.a.name:'系统',role:'项目经理',title:`本月模型预算已用 ${Math.round(S.budget.used/S.budget.cap*100)}%，申请追加 RM 1,000`,detail:`已用 ${rm(S.budget.used)} / ${rm(S.budget.cap)}。自建模型占比 ${selfShare()}%。`,budget:true,rev:'项目经理已排除异常调用后提交'});}
@@ -1276,10 +1278,10 @@ function pmWatch(){
       pmLog('anomaly',`${r.a.name} 异常已解决：接口超时导致重复重试，已加退避上限，恢复调用`);}
   });
 }
-function dailyReport(){
+function dailyReport(){if(REAL())return; // real brief comes from the backend
   const pm=pmAgent();const doneSubs=S.tasks.reduce((n,t)=>n+t.subs.filter(s=>s.status==='done'&&s.doneDay===undefined).length,0);
   const tot=S.cost.self+S.cost.cloud;
-  if(pm)S.reports.push({id:'r'+uid(),day:S.day,at:'18:00',from:pm.a.name,title:`第 ${S.day} 天日报`,
+  if(pm)S.reports.push({id:'r'+uid(),day:S.day,at:'18:00',from:pm.a.name,title:`${dl(S.day)}日报`,
     text:`进行中任务 ${S.tasks.filter(t=>t.status==='active').length} 个，已完成 ${S.tasks.filter(t=>t.status==='done').length} 个。模型花费 ${rm(tot)}（自建占 ${selfShare()}%），本月已用 ${rm(S.budget.used)} / ${rm(S.budget.cap)}。今日异常 ${S.anomFixed||0} 起，均已自行处理。`});
   S.cost={cloud:0,self:0};S.anomFixed=0;
   if(S.reports.length>40)S.reports.splice(0,S.reports.length-40);
@@ -1316,11 +1318,15 @@ function endMeeting(M){
 const tmpV=new THREE.Vector3(),tmpC=new THREE.Vector3(),SUNOFF=new THREE.Vector3(38,70,34);
 let last=performance.now(),saveAcc=0,uiAcc=0,watchAcc=0;let camAnim=null;
 function attach(r){const F=r.floor&&FL[r.floor];if(F&&F.group&&r.av.g.parent!==F.group)F.group.add(r.av.g);}
+let fpsN=0,fpsT=0,fpsEst=0;
 function frame(now){
-  const dt=Math.min(0.05,(now-last)/1000);last=now;const sdt=dt*speed;
-  if(speed>0){
-    S.clock+=sdt;
-    if(S.clock>=18*60){dailyReport();S.clock=9*60;S.day++;S.nextMeet=9*60+ri(20,40);addLog(`第 ${S.day} 天开始`);}
+  fpsN++;if(now-fpsT>1000){fpsEst=fpsN*1000/Math.max(1,now-fpsT);fpsN=0;fpsT=now;}
+  const dt=Math.min(0.05,(now-last)/1000);last=now;const sdt=dt/60;
+  {
+    const rn=realNow();
+    if(rn.day!==S.day){S.day=rn.day;S.nextMeet=rn.min+ri(20,60);addLog(`${dlong(S.day)} 开始`);}
+    S.clock=rn.min;
+    if(S.clock>=18*60&&S.reportDay!==S.day){S.reportDay=S.day;dailyReport();}
     maybeMeeting();meeting.slice().forEach(M=>{if(S.day*10000+S.clock>=M.endAbs)endMeeting(M);});
     S.tasks.forEach(T=>{if(T.status==='planning'&&!T.real&&S.day*10000+S.clock>=(T.planAbs||0))planTask(T);});
     watchAcc+=sdt;if(watchAcc>3){watchAcc=0;pmWatch();}
@@ -1334,7 +1340,7 @@ function frame(now){
   const pc=pendingCount();deciLamps.forEach(m=>m.emissiveIntensity=pc?1.2+Math.sin(now/280)*0.8:0.2);
   sun.target.position.copy(controls.target);sun.position.copy(controls.target).add(SUNOFF);
   controls.update();renderer.render(scene,camera);updateLabels();
-  uiAcc+=dt;if(uiAcc>0.3){uiAcc=0;$('#clockT').textContent=hhmm(S.clock);$('#clockD').textContent=`第 ${S.day} 天`;refreshLive();}
+  uiAcc+=dt;if(uiAcc>0.3){uiAcc=0;$('#clockT').textContent=hhmm(S.clock);$('#clockD').textContent=dlong(S.day);refreshLive();}
   saveAcc+=dt;if(saveAcc>5){saveAcc=0;save();}
   remoteAcc+=dt;if(remoteAcc>20){remoteAcc=0;saveRemote();}
   if(!$('#modal').hidden)renderPreview(dt,'agent');
@@ -1344,9 +1350,9 @@ function frame(now){
 function updateAgent(r,dt,sdt,now){
   const av=r.av;
   if(speed>0){
-    if(r.riding>0){r.riding-=sdt;if(r.riding<=0){r.riding=0;const s=r.ride;r.ride=null;r.floor=s.floor;attach(r);r.pos.copy(ELEV);r.path=[...s.approach.map(p=>p.clone()),s.pos.clone()];}}
+    if(r.riding>0){r.riding-=dt;if(r.riding<=0){r.riding=0;const s=r.ride;r.ride=null;r.floor=s.floor;attach(r);r.pos.copy(ELEV);r.path=[...s.approach.map(p=>p.clone()),s.pos.clone()];}}
     else if(r.path.length){
-      const tgt=r.path[0];const dx=tgt.x-r.pos.x,dz=tgt.z-r.pos.z,dist=Math.hypot(dx,dz);const step=1.5*sdt;
+      const tgt=r.path[0];const dx=tgt.x-r.pos.x,dz=tgt.z-r.pos.z,dist=Math.hypot(dx,dz);const step=1.5*dt;
       if(dist>0.001)r.yawT=Math.atan2(dx,dz);
       if(dist<=step){r.pos.x=tgt.x;r.pos.z=tgt.z;r.path.shift();
         if(!r.path.length){
@@ -1354,7 +1360,7 @@ function updateAgent(r,dt,sdt,now){
           else{const s=r.target;r.atSpot=s;r.seated=!!s.sit;r.yawT=s.face;if(r.queued){const q=r.queued;r.queued=null;goTo(r,...q);}}
         }}
       else{r.pos.x+=dx/dist*step;r.pos.z+=dz/dist*step;}
-      r.phase+=sdt*9;
+      r.phase+=dt*9;
     }else{
       if(r.act!=='meet'&&r.act!=='idle'){r.timer-=sdt;
         if(r.timer<=0){if(r.act==='report'){release(r);r.bubble={txt:'先回去忙，等你回复',until:now+2500};r.act='idle';startWork(r,'等待 Dave 审批');}else endActivity(r);}}
@@ -1452,7 +1458,7 @@ $$('.tab').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 const RENDER={dec:()=>renderDecisions(),task:()=>renderTasks(true),team:()=>renderTeam(),bld:()=>renderBuildings(),back:()=>renderBack(true),log:()=>renderLog()};
 function showTab(k){$$('.tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===k));['dec','task','team','bld','back','log'].forEach(x=>$('#pane-'+x).hidden=x!==k);RENDER[k]();}
 $('#pendBtn').onclick=()=>showTab('dec');
-$$('#speed button').forEach(b=>b.onclick=()=>{speed=+b.dataset.s;$$('#speed button').forEach(x=>x.classList.toggle('on',x===b));});
+
 
 function renderNav(){
   const nav=$('#nav');const b=focus?focus.b:(selB?S.buildings.find(x=>x.id===selB):null);
@@ -1468,7 +1474,7 @@ function renderNav(){
 
 function avStyle(a){const L=a.look;return `--bg:#e8eef0;--tp:${L.top};--sk:${L.skin};--hc:${L.hair==='none'?L.skin:L.hairColor}`;}
 function decCard(d,pending){return `<div class="card${pending?' pending':''}" data-id="${d.id}">
-  <div class="meta"><span class="who">${esc(d.agentName)}</span><span>${esc(d.role)}</span><span>· 第 ${d.day} 天 ${d.at}</span>${d.src?`<span>· 来自「${esc(d.src)}」</span>`:''}</div>
+  <div class="meta"><span class="who">${esc(d.agentName)}</span><span>${esc(d.role)}</span><span>· ${dl(d.day)} ${d.at}</span>${d.src?`<span>· 来自「${esc(d.src)}」</span>`:''}</div>
   <h4>${esc(d.title)}</h4><p>${esc(d.detail)}</p>${d.rev?`<div class="rev">${esc(d.rev)}</div>`:''}
   ${pending?`<input type="text" id="note-${d.id}" placeholder="留句话（可选）" maxlength="60"><div class="opts">${d.opts.map(([l,k])=>`<button class="opt ${k}" data-l="${esc(l)}" data-k="${k}">${esc(l)}</button>`).join('')}</div>`
   :`<div class="res ${d.status==='approved'?'yes':'no'}">你的决定：${esc(d.choice)} · ${d.doneAt}${d.note?' · '+esc(d.note):''}</div>`}</div>`;}
@@ -1481,7 +1487,7 @@ function renderDecisions(){
    <div class="h">待你审批（${p.length}）</div>
    ${p.length?p.map(d=>decCard(d,true)).join(''):'<div class="empty">暂时没有需要你拍板的事。</div>'}
    <div class="h">结论</div>
-   ${reps.length?reps.map(r=>`<div class="card concl"><div class="meta"><span class="who">${esc(r.from)}</span><span>· 第 ${r.day} 天 ${r.at}</span></div><h4>${esc(r.title)}</h4><p>${esc(r.text)}</p></div>`).join(''):'<div class="empty">任务完成后，结论会出现在这里。</div>'}
+   ${reps.length?reps.map(r=>`<div class="card concl"><div class="meta"><span class="who">${esc(r.from)}</span><span>· ${dl(r.day)} ${r.at}</span></div><h4>${esc(r.title)}</h4><p>${esc(r.text)}</p></div>`).join(''):'<div class="empty">任务完成后，结论会出现在这里。</div>'}
    ${done.length?`<details class="done"><summary>已处理的审批（${done.length}）</summary>${done.map(d=>decCard(d,false)).join('')}</details>`:''}`;
 }
 $('#pane-dec').addEventListener('click',e=>{const b=e.target.closest('.opt');if(!b)return;const id=b.closest('.card').dataset.id;const n=$('#note-'+id);resolve(id,b.dataset.l,b.dataset.k,n?n.value.trim():'');});
@@ -1499,7 +1505,7 @@ function renderTasks(force){
     <span style="font-size:11.5px;color:var(--ink-2)">${pmAgent()?'项目经理会按部门拆解并分配。重要、紧急的任务，以及涉及上线、发布、投放、付款的任务，完成后会交给你做最终审批。':'公司还没有项目经理，请先新建一名职位为「项目经理」的 Agent。'}</span></form>
     ${REAL()&&!aiReady?'<div class="rule"><b>还没填模型 API Key。</b>到「后台 → 插件与机器人」填 Claude 或 GPT 的 Key，任务才会真正开始做。</div>':''}
     ${list.length?list.map(T=>{const done=T.subs.filter(s=>s.status==='done').length,tot=T.subs.length||1;const prog=T.subs.length?Math.round(T.subs.reduce((n,s)=>n+(s.status==='done'?1:s.status==='doing'?0.5:0),0)/tot*100):0;
-      return `<div class="card"><div class="meta"><span class="who">${esc(T.prio)}</span><span>· 第 ${T.day} 天 ${T.at} 发布</span><span>· ${ST[T.status]||T.status}</span></div>
+      return `<div class="card"><div class="meta"><span class="who">${esc(T.prio)}</span><span>· ${dl(T.day)} ${T.at} 发布</span><span>· ${ST[T.status]||T.status}</span></div>
       <h4>${esc(T.title)}</h4>${T.desc?`<p>${esc(T.desc)}</p>`:''}
       <div class="bar"><i style="width:${T.status==='done'?100:prog}%"></i></div>
       ${T.subs.length?`<div class="subs">${T.subs.map(s=>`<div><span class="d">${esc(s.dept)}</span><span>${esc(s.agentName)}</span><span class="s ${s.status}">${{todo:'待开始',doing:'进行中',done:'完成',failed:'失败'}[s.status]||s.status}</span></div>${s.output?`<details class="deliv" data-sid="${s.id}"><summary>${esc(s.title)} · 查看交付${s.model?` · ${esc(s.model)}`:''}</summary><pre>${esc(s.output)}</pre></details>`:''}`).join('')}</div>`:''}
@@ -1530,7 +1536,7 @@ function busy(id){const a=document.activeElement;return a&&a!==document.body&&$(
 function renderBack(force){
   if($('#pane-back').hidden||(!force&&busy('#pane-back')))return;
   const tot=S.cost.self+S.cost.cloud;const roleOpts=Object.entries(ROLES).map(([k,r])=>`<label><input type="checkbox" value="${k}" name="vr">${r.label}</label>`).join('');
-  $('#pane-back').innerHTML=`${budgetHTML()}
+  $('#pane-back').innerHTML=`${budgetHTML()}${upgradeHTML()}
   <div class="server"><div><b>自建 GPU 服务器</b><br><span>${S.selfOnline?'在线 · 开源文本 / 图像 / 视频模型优先':'离线 · 请求已自动切到云端备用'}</span></div><button class="tg ${S.selfOnline?'on':''}" id="srvTg" aria-label="切换自建服务器在线状态"></button></div>
   <div class="kpis"><div class="kpi"><span>今日花费</span><b>${rm(tot)}</b></div><div class="kpi"><span>自建占比</span><b>${selfShare()}%</b></div><div class="kpi"><span>本月预算</span><b>${Math.round(S.budget.used/S.budget.cap*100)}%</b></div></div>
   <div class="h">模型（费用为估算，可在后台配置）</div>
@@ -1581,7 +1587,7 @@ async function rtSync(){if(!REAL()||rtBusy||document.hidden)return;rtBusy=true;
     let changed=false;
     for(const t of (ts||[]).slice().reverse()){
       let T=S.tasks.find(x=>x.id===t.id);
-      if(!T){T={id:t.id,title:t.title,desc:t.description||'',prio:t.priority,day:S.day,at:hm(t.created_at),subs:[],cost:0};S.tasks.push(T);changed=true;}
+      if(!T){T={id:t.id,title:t.title,desc:t.description||'',prio:t.priority,day:dayOf(t.created_at),at:hm(t.created_at),subs:[],cost:0};S.tasks.push(T);changed=true;}
       const before=JSON.stringify([T.status,T.conclusion,T.subs.map(s=>[s.id,s.status])]);
       const wasDone=T.status==='done';
       Object.assign(T,{real:true,status:t.status,cost:+t.cost||0,conclusion:t.conclusion||'',note:t.plan_note||'',drive:t.drive_folder_url||''});
@@ -1593,7 +1599,7 @@ async function rtSync(){if(!REAL()||rtBusy||document.hidden)return;rtBusy=true;
     for(const x of (ds||[]).slice().reverse()){
       let d=S.decisions.find(y=>y.id===x.id);const a=S.agents.find(y=>y.id===x.agent_id);
       if(!d){d={id:x.id,real:true,agentId:x.agent_id||'',agentName:a?a.name:'系统',role:a?(roleOf(a)||{}).label:'',title:x.title,detail:x.detail||'',rev:x.review||'',
-          opts:x.options||[['批准','yes'],['驳回','no']],taskId:x.task_id,status:x.status,at:hm(x.created_at),day:S.day,choice:x.choice||'',note:x.note||'',doneAt:x.decided_at?hm(x.decided_at):''};
+          opts:x.options||[['批准','yes'],['驳回','no']],taskId:x.task_id,status:x.status,at:hm(x.created_at),day:dayOf(x.created_at),choice:x.choice||'',note:x.note||'',doneAt:x.decided_at?hm(x.decided_at):''};
         S.decisions.push(d);changed=true;
         if(x.status==='pending'){addLog(`${d.agentName} 提交最终审批「${d.title}」`,true);toast(`<b>${esc(d.agentName)}</b> 提交了一项需要你最终审批的事`);
           const r=live[d.agentId],sp=bossSpot();if(r&&sp&&!r.decId){r.decId=d.id;goTo(r,sp,'report','等待 Dave 审批：'+d.title,35);}}}
@@ -1608,7 +1614,9 @@ let BUD=null;
 async function loadBudget(){if(!REAL())return;
   try{const [st,m,d,lg]=await Promise.all([sbc.from('runtime_settings').select('data').eq('id',1).maybeSingle(),sbc.rpc('rt_month_spend'),sbc.rpc('rt_day_spend'),
       sbc.from('budget_log').select('*').order('created_at',{ascending:false}).limit(30)]);
-    BUD={st:(st.data&&st.data.data)||{},month:+m.data||0,day:+d.data||0,log:lg.data||[]};renderBack();}catch(e){console.warn('budget',e&&e.message);}}
+    const [up,fb]=await Promise.all([sbc.from('upgrade_proposals').select('*').order('created_at',{ascending:false}).limit(12),
+      sbc.from('feedback').select('*').eq('status','open').order('created_at',{ascending:false}).limit(12)]);
+    BUD={st:(st.data&&st.data.data)||{},month:+m.data||0,day:+d.data||0,log:lg.data||[],ups:up.data||[],fb:fb.data||[]};renderBack();}catch(e){console.warn('budget',e&&e.message);}}
 function budgetHTML(){if(!REAL())return '';if(!BUD)return '<div class="h">预算</div><div class="empty">载入中…</div>';
   const st=BUD.st,cap=+st.monthly_cap_rm||0,pct=cap?Math.round(BUD.month/cap*100):0;
   const K={set_monthly:'改月上限',set_task:'改单任务上限',set_task_topup:'改单任务追加额',set_month_topup:'改月追加额',topup_task:'任务追加',topup_month:'月度追加'};
@@ -1621,6 +1629,16 @@ function budgetHTML(){if(!REAL())return '';if(!BUD)return '<div class="h">预算
     <span class="meta">用到上限时项目经理会先暂停，再发审批给你；每次追加都要你批准。所有改动和追加都记在下面。</span></form>
   <div class="h">预算记录</div>
   <div class="pmlog">${BUD.log.map(l=>`<div><time>${hm(l.created_at)}</time><span class="k ${/topup/.test(l.kind)?'approve':'decide'}">${K[l.kind]||l.kind}</span><span>${new Date(l.created_at).toLocaleDateString('zh-CN')} · RM ${(+l.before_rm).toFixed(0)} → RM ${(+l.after_rm).toFixed(0)}${l.note?' · '+esc(l.note):''}</span></div>`).join('')||'<div class="empty">还没有记录</div>'}</div>`;}
+function upgradeHTML(){if(!REAL()||!BUD)return '';
+  const ST={pending:'等你批准',approved:'已批准，排队开发',rejected:'不做',building:'开发中',shipped:'已上线',failed:'没上线'};
+  return `<div class="h">系统升级</div>
+  <div class="rule">系统定时巡检报错、卡住的任务和你提的问题。发现问题才会提方案：先发给你批准，批准后自己开发、检查、上线；上线前必须通过「不影响现有功能、不变慢」的检查。也可以直接在 Telegram 打字给机器人提问题。</div>
+  <form class="pform bud" id="fbForm"><textarea id="fbText" maxlength="1000" placeholder="哪里有问题、想改进什么，写在这里" required></textarea><button class="btn ghost sm" type="submit">提交给系统</button></form>
+  ${BUD.fb.length?`<div class="meta">待处理的问题：${BUD.fb.length} 条</div>`:''}
+  ${BUD.ups.map(u=>`<div class="vitem"><div class="vt"><b>${esc(u.problem.slice(0,60))}</b><span class="lock">${ST[u.status]||u.status}</span></div><div class="meta">${esc(u.plan.slice(0,160))}</div>${u.result?`<div class="meta">${esc(u.result.slice(0,200))}</div>`:''}<div class="meta">${dl(dayOf(u.created_at))} ${hm(u.created_at)}</div></div>`).join('')||'<div class="empty">还没有升级记录</div>'}`;}
+$('#pane-back').addEventListener('submit',async e=>{if(e.target.id!=='fbForm')return;e.preventDefault();
+  const t=$('#fbText').value.trim();if(!t)return;const {error}=await sbc.from('feedback').insert({source:'web',content:t});
+  if(error){toast('提交失败：'+esc(error.message));return;}$('#fbText').value='';document.activeElement.blur();toast('已记下，系统巡检时会处理');loadBudget();});
 $('#pane-back').addEventListener('submit',async e=>{if(e.target.id!=='budForm')return;e.preventDefault();
   const v=id=>+$('#'+id).value;const b=e.target.querySelector('button');b.disabled=true;
   const {error}=await sbc.rpc('set_budget',{p_month:v('bMonth'),p_task:v('bTask'),p_task_topup:v('bTaskTop'),p_month_topup:v('bMonthTop')});
@@ -1886,9 +1904,10 @@ function seed(){
 }
 function bootState(remote){
   const saved=remote||load();
-  if(saved){S=saved;S.clock=Math.max(9*60,Math.min(S.clock,18*60-1));['decisions','reports','tasks','log','pmLog'].forEach(k=>S[k]=S[k]||[]);S.models=S.models||JSON.parse(JSON.stringify(MODELS0));S.vault=S.vault||JSON.parse(JSON.stringify(VAULT0));S.plugins=S.plugins||JSON.parse(JSON.stringify(PLUGINS0));
+  if(saved){S=saved;['decisions','reports','tasks','log','pmLog'].forEach(k=>S[k]=S[k]||[]);S.models=S.models||JSON.parse(JSON.stringify(MODELS0));S.vault=S.vault||JSON.parse(JSON.stringify(VAULT0));S.plugins=S.plugins||JSON.parse(JSON.stringify(PLUGINS0));
     S.tasks.forEach(T=>T.subs.forEach(s=>{if(s.status==='doing')s.status='todo';}));}
   else seed();
+  {const rn=realNow();if(S.day!==rn.day){S.nextMeet=rn.min+ri(10,40);if(rn.min>=18*60)S.reportDay=rn.day;}S.day=rn.day;S.clock=rn.min;}
   S.buildings.forEach(b=>{if(!STYLES[b.style])b.style=b.style==='brick'?'loft':'modern';if(b.slot>7||b.slot==null)b.slot=0;});
   rebuildFloors();
   S.agents.forEach(a=>{spawn(a);});
@@ -1917,7 +1936,11 @@ addEventListener('resize',resize);
 async function boot(){
   await ensureLogin();
   const remote=await loadRemote();
-  bootState(remote);if(authed&&!remote)saveRemote();
+  bootState(remote);
+  if(authed&&!S.realMigrated){ // drop demo/simulated work once the real backend is live
+    S.tasks=S.tasks.filter(t=>t.real);S.decisions=S.decisions.filter(d=>d.real);S.reports=[];S.realMigrated=true;
+    Object.values(live).forEach(r=>{if(r.decId)r.decId=null;});}
+  if(authed&&!remote)saveRemote();
   S.plugins=PLUGINS0.map(p=>{const o=S.plugins.find(x=>x.id===p.id);const n=JSON.parse(JSON.stringify(p));if(o&&o.status&&(!n.fields||o.status!=='待授权'))n.status=o.status;return n;})
     .concat(S.plugins.filter(x=>!PLUGINS0.some(p=>p.id===x.id)));
   {const q=new URLSearchParams(location.search);if(q.get('drive')){setTimeout(()=>toast(q.get('drive')==='ok'?'Google Drive 已连接，之后的交付会自动存进去':'Drive 授权没成功：'+esc(q.get('msg')||'')),800);history.replaceState(null,'',location.pathname);}}
@@ -1925,6 +1948,9 @@ async function boot(){
   overview();if(camAnim){camera.position.copy(camAnim.p1);controls.target.copy(camAnim.t1);camAnim=null;}
   renderNav();renderDecisions();
   requestAnimationFrame(t=>{last=t;frame(t);});
+  // read-only hook for the automated pre-release checks (checks/run.js)
+  window.__office={ready:true,stats:()=>({calls:renderer.info.render.calls,tris:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,
+    textures:renderer.info.memory.textures,fps:Math.round(fpsEst),agents:Object.keys(live).length,day:S.day,clock:S.clock})};
 }
 Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(r=>setTimeout(r,1500))]).then(boot);
 })();

@@ -123,8 +123,14 @@ async function onUpdate(u: any, c: Cfg) {
   const q = u.callback_query;
   if (!q) {
     const m = u.message;
-    if (m && String(m.chat?.id) === String(c.chat) && /^\/start/.test(m.text || ""))
-      await tg(c.token!, "sendMessage", { chat_id: c.chat, text: "AI Office 已连接。审批、任务结论和每日简报会发到这里。" });
+    if (!m || String(m.chat?.id) !== String(c.chat)) return;
+    const text = String(m.text || m.caption || "").trim();
+    if (/^\/start/.test(text)) {
+      await tg(c.token!, "sendMessage", { chat_id: c.chat, text: "AI Office 已连接。审批、任务结论和每日简报会发到这里。直接打字给我，就会记成问题或改进意见，系统巡检时处理。" });
+    } else if (text) {
+      await admin.from("feedback").insert({ source: "telegram", content: cut(text, 2000) });
+      await tg(c.token!, "sendMessage", { chat_id: c.chat, reply_to_message_id: m.message_id, text: "已记下。系统巡检时会处理，需要改动的话会先把方案发给你批准。" });
+    }
     return;
   }
   const answer = (text: string) => tg(c.token!, "answerCallbackQuery", { callback_query_id: q.id, text });
