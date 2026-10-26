@@ -1,0 +1,1821 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>DK Global Group · AI Office</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Unbounded:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: full-bleed sandbox world under a soft sky; floating paper panels — top bar with breadcrumb, right panel (approvals / tasks / team / buildings / backend / log), left drawer for the selected agent or building */
+:root{
+  --sky-1:#cfe6f2;
+  --sky-2:#eef5f1;
+  --paper:#fbfcfb;
+  --paper-2:#eff2f1;
+  --ink:#1c2329;
+  --ink-2:#5c6872;
+  --line:#dfe4e3;
+  --cobalt:#2b55c9;
+  --amber:#e39a2d;
+  --amber-soft:#fcf1dd;
+  --ok:#2f8f5b;
+  --bad:#c2453b;
+  --f-display:"Unbounded","Noto Sans SC",system-ui,sans-serif;
+  --f-body:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+html,body{height:100%}
+body{background:var(--sky-2);color:var(--ink);font-family:var(--f-body);font-size:14px;overflow:hidden}
+#app{position:fixed;inset:0}
+#stage{position:absolute;inset:0;background:linear-gradient(180deg,var(--sky-1) 0%,var(--sky-2) 70%)}
+#stage canvas{display:block;width:100%;height:100%;cursor:grab}
+#labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.tag{position:absolute;left:0;top:0;display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap;will-change:transform}
+.tag .nm{font-size:11.5px;font-weight:700;background:var(--paper);color:var(--ink);padding:2px 8px;border-radius:999px;box-shadow:0 1px 4px rgba(20,30,40,.18);display:flex;align-items:center;gap:5px}
+.tag .nm i{width:7px;height:7px;border-radius:50%;background:var(--c,var(--ink-2));display:block}
+.tag .st{font-size:10.5px;color:var(--ink);background:rgba(251,252,251,.82);padding:1px 6px;border-radius:4px;max-width:160px;overflow:hidden;text-overflow:ellipsis}
+.tag.sel .nm{background:var(--cobalt);color:#fff}
+.tag.wait .nm{background:var(--amber)}
+.btag{position:absolute;left:0;top:0;display:flex;flex-direction:column;align-items:center;white-space:nowrap}
+.btag b{font-size:13px;background:var(--ink);color:var(--paper);padding:4px 10px;border-radius:8px;box-shadow:0 3px 10px rgba(20,30,40,.25)}
+.btag span{font-size:11px;color:var(--ink);background:rgba(251,252,251,.85);padding:1px 7px;border-radius:4px;margin-top:3px}
+.s-work{--c:var(--cobalt)} .s-meet{--c:#6b4fd8} .s-break{--c:var(--ok)} .s-report{--c:var(--amber)} .s-walk{--c:#8b96a0} .s-collab{--c:#1f8a94} .s-idle{--c:#b9c1c7} .s-ride{--c:#8b96a0}
+.chip i{background:var(--c,var(--ink-2))}
+
+.topbar{position:absolute;top:12px;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));display:flex;align-items:center;gap:10px;flex-wrap:wrap;pointer-events:none}
+.topbar>*{pointer-events:auto}
+.brand{background:var(--ink);color:var(--paper);border-radius:10px;padding:8px 14px}
+.brand b{font-family:var(--f-display);font-weight:700;font-size:13px;letter-spacing:.08em}
+.nav{background:var(--paper);border-radius:10px;padding:5px 6px;display:flex;align-items:center;gap:2px;box-shadow:0 2px 8px rgba(20,30,40,.12);font-size:13px}
+.nav button{border:0;background:none;font:500 13px var(--f-body);padding:4px 8px;border-radius:6px;cursor:pointer;color:var(--ink-2)}
+.nav button:hover{background:var(--paper-2)}
+.nav button.cur{color:var(--ink);font-weight:700}
+.nav .sep{color:var(--line)}
+.nav select{border:0;background:var(--paper-2);border-radius:6px;font:700 13px var(--f-body);padding:4px 6px;color:var(--ink);max-width:180px}
+.nav .step{font:600 12px var(--f-mono);color:var(--ink)}
+.clock{background:var(--paper);border-radius:10px;padding:6px 10px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 8px rgba(20,30,40,.12)}
+.clock .t{font-family:var(--f-display);font-weight:500;font-size:15px;font-variant-numeric:tabular-nums;min-width:50px}
+.clock .d{font-size:12px;color:var(--ink-2)}
+.seg{display:flex;background:var(--paper-2);border-radius:7px;padding:2px}
+.seg button{border:0;background:transparent;font:600 12px var(--f-mono);padding:4px 8px;border-radius:5px;color:var(--ink-2);cursor:pointer}
+.seg button.on{background:var(--ink);color:var(--paper)}
+.spacer{flex:1}
+.btn{border:0;font:600 13px var(--f-body);padding:9px 14px;border-radius:9px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:focus-visible,.seg button:focus-visible,.tab:focus-visible,.sw:focus-visible,.opt:focus-visible,.nav button:focus-visible,.pills button:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
+.btn.primary{background:var(--cobalt);color:#fff;box-shadow:0 2px 8px rgba(43,85,201,.35)}
+.btn.dark{background:var(--ink);color:var(--paper)}
+.btn.ghost{background:var(--paper-2);color:var(--ink)}
+.btn.sm{padding:6px 10px;font-size:12px}
+.btn.danger{background:transparent;color:var(--bad);border:1px solid var(--bad)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.pend{background:var(--amber);color:var(--ink);font-weight:700}
+.pend[data-n="0"]{background:var(--paper);color:var(--ink-2);font-weight:500}
+
+.panel{position:absolute;top:66px;right:max(16px,env(safe-area-inset-right,0px));bottom:16px;width:360px;background:var(--paper);border-radius:14px;box-shadow:0 8px 30px rgba(20,30,40,.18);display:flex;flex-direction:column;overflow:hidden}
+.tabs{display:flex;border-bottom:1px solid var(--line);padding:0 4px}
+.tab{flex:1;border:0;background:none;padding:11px 2px 9px;font:600 12.5px var(--f-body);color:var(--ink-2);cursor:pointer;border-bottom:2px solid transparent;display:flex;justify-content:center;gap:4px;align-items:center;white-space:nowrap}
+.tab.on{color:var(--ink);border-bottom-color:var(--ink)}
+.tab .n{font:600 10.5px var(--f-mono);background:var(--amber);color:var(--ink);border-radius:999px;padding:0 5px;line-height:16px}
+.tab .n[data-n="0"]{display:none}
+.pane{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;min-height:0}
+.rule{font-size:12px;line-height:1.6;color:var(--ink-2);background:var(--paper-2);border-radius:8px;padding:10px 12px}
+.rule b{color:var(--ink)}
+.empty{text-align:center;color:var(--ink-2);font-size:13px;padding:22px 10px;line-height:1.7}
+.h{font:700 11px var(--f-body);letter-spacing:.06em;color:var(--ink-2);margin:4px 0 -4px;display:flex;justify-content:space-between;align-items:center}
+.card{border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;background:var(--paper)}
+.card.pending{border-color:var(--amber);background:linear-gradient(var(--amber-soft),var(--paper) 60%)}
+.card.concl{border-left:3px solid var(--ok)}
+.card .meta{font-size:11.5px;color:var(--ink-2);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.card .meta .who{font-weight:700;color:var(--ink)}
+.card h4{margin:0;font-size:14.5px;line-height:1.45;text-wrap:balance}
+.card p{margin:0;font-size:12.5px;line-height:1.6;color:var(--ink-2)}
+.card .rev{font-size:11.5px;color:var(--ink);border-left:2px solid var(--line);padding-left:8px;line-height:1.5}
+.card input[type=text]{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:7px;padding:7px 9px;font:13px var(--f-body);background:var(--paper);color:var(--ink)}
+.opts{display:flex;gap:6px;flex-wrap:wrap}
+.opt{flex:1;min-width:70px;border:0;border-radius:7px;padding:8px 6px;font:700 13px var(--f-body);cursor:pointer}
+.opt.yes{background:var(--ink);color:var(--paper)}
+.opt.no{background:transparent;color:var(--bad);border:1px solid #e3c2bf}
+.res{font-size:12px;font-weight:700}
+.res.yes{color:var(--ok)} .res.no{color:var(--bad)}
+details.done summary{cursor:pointer;font-size:12px;color:var(--ink-2);padding:4px 0}
+details.done .card{opacity:.85;margin-top:8px}
+.bar{height:6px;border-radius:4px;background:var(--paper-2);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--cobalt);border-radius:4px}
+.subs{display:flex;flex-direction:column;gap:4px}
+.subs div{display:grid;grid-template-columns:52px 1fr auto;gap:6px;font-size:12px;align-items:center}
+.subs .d{font-weight:700;color:var(--ink-2)}
+.subs .s{font-size:11px;padding:1px 6px;border-radius:4px;background:var(--paper-2)}
+.subs .s.doing{background:#e5ecfb;color:var(--cobalt)} .subs .s.done{background:#e2f2e8;color:var(--ok)}
+.pform{display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--paper-2)}
+.pform input,.pform textarea,.pform select{border:1px solid var(--line);border-radius:7px;padding:8px 9px;font:13px var(--f-body);background:var(--paper);color:var(--ink)}
+.pform textarea{min-height:54px;resize:vertical}
+.pform .row{display:flex;gap:8px;align-items:center}
+.pform .row select{flex:1}
+
+.lvl{font:600 10.5px var(--f-mono);letter-spacing:.08em;color:var(--ink-2);margin:4px 0 -4px}
+.member{display:flex;align-items:center;gap:10px;padding:8px;border-radius:9px;cursor:pointer;border:1px solid transparent}
+.member:hover{background:var(--paper-2)}
+.member.sel{border-color:var(--cobalt);background:#eef2fc}
+.av{width:30px;height:30px;border-radius:50%;flex:none;position:relative;overflow:hidden;background:var(--bg)}
+.av::before{content:"";position:absolute;left:50%;bottom:-8px;width:26px;height:16px;margin-left:-13px;border-radius:50% 50% 0 0;background:var(--tp)}
+.av::after{content:"";position:absolute;left:50%;top:5px;width:14px;height:15px;margin-left:-7px;border-radius:50%;background:var(--sk);box-shadow:0 -3px 0 1px var(--hc)}
+.member .info{flex:1;min-width:0}
+.member .info b{font-size:13.5px;display:block}
+.member .info span{font-size:11.5px;color:var(--ink-2)}
+.chip{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--paper-2);display:inline-flex;gap:5px;align-items:center;white-space:nowrap}
+.chip i{width:6px;height:6px;border-radius:50%;display:block}
+.badge{font:600 10.5px var(--f-body);color:#fff;padding:2px 7px;border-radius:4px;background:var(--bc)}
+.depts{display:flex;flex-wrap:wrap;gap:6px}
+
+.bcard{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.bcard .top{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--paper-2)}
+.bcard .top b{font-size:14px}
+.bcard .top span{font-size:11.5px;color:var(--ink-2)}
+.bcard .top .btn{margin-left:auto}
+.flist{display:flex;flex-direction:column}
+.flist button{display:grid;grid-template-columns:36px 1fr auto;gap:8px;align-items:center;border:0;border-top:1px solid var(--line);background:var(--paper);padding:8px 12px;font:13px var(--f-body);text-align:left;cursor:pointer;color:var(--ink)}
+.flist button:hover{background:#f4f7fd}
+.flist .fn{font:600 12px var(--f-mono);color:var(--ink-2)}
+.flist .ft{font-size:11px;color:var(--ink-2)}
+
+.mrow{display:grid;grid-template-columns:1fr auto;gap:2px 8px;border:1px solid var(--line);border-radius:9px;padding:9px 11px;align-items:center}
+.mrow b{font-size:13px}
+.mrow .m2{font-size:11.5px;color:var(--ink-2);grid-column:1/2}
+.tg{position:relative;width:36px;height:20px;border-radius:999px;background:var(--line);border:0;cursor:pointer;grid-row:1/3;grid-column:2}
+.tg::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s}
+.tg.on{background:var(--ok)} .tg.on::after{left:18px}
+.server{display:flex;align-items:center;gap:10px;border-radius:10px;padding:10px 12px;background:var(--ink);color:var(--paper)}
+.server b{font-size:13px} .server span{font-size:11.5px;color:#aab4bd}
+.server .tg{margin-left:auto}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kpi{background:var(--paper-2);border-radius:9px;padding:9px 10px}
+.kpi span{display:block;font-size:11px;color:var(--ink-2)}
+.kpi b{font:600 15px var(--f-mono);font-variant-numeric:tabular-nums}
+.routes{font-size:12px;display:grid;grid-template-columns:auto 1fr;gap:4px 10px}
+.routes dt{color:var(--ink-2)} .routes dd{margin:0}
+.pmlog div{font-size:12px;line-height:1.5;padding:5px 0;border-bottom:1px dashed var(--line);display:grid;grid-template-columns:44px 52px 1fr;gap:6px}
+.pmlog time{font:11.5px var(--f-mono);color:var(--ink-2)}
+.pmlog .k{font-size:10.5px;font-weight:700;border-radius:4px;padding:0 5px;text-align:center;align-self:start}
+.k.approve{background:#e2f2e8;color:var(--ok)} .k.downgrade{background:#e5ecfb;color:var(--cobalt)} .k.anomaly{background:var(--amber-soft);color:#9a5d0c} .k.block{background:#f6e1df;color:var(--bad)} .k.decide{background:var(--paper-2);color:var(--ink)}
+.vitem{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.vitem .vt{display:flex;align-items:center;gap:8px}
+.vitem .vt b{font-size:13.5px}
+.vitem .mask{font:12px var(--f-mono);color:var(--ink-2);letter-spacing:.1em}
+.vitem .vt .del{margin-left:auto;border:0;background:none;color:var(--ink-2);cursor:pointer;font-size:12px}
+.vitem .meta{font-size:11.5px;color:var(--ink-2);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.pin{border:1px solid var(--line);border-radius:7px;padding:7px 9px;font:13px var(--f-mono);background:var(--paper-2);color:var(--ink)}
+.lock{font:600 10.5px var(--f-body);background:var(--amber-soft);color:#9a5d0c;padding:1px 6px;border-radius:4px}
+.checks{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12.5px}
+.checks label{display:flex;gap:4px;align-items:center}
+
+.log{display:flex;flex-direction:column}
+.log div{display:grid;grid-template-columns:44px 1fr;gap:8px;font-size:12.5px;line-height:1.55;padding:4px 0;border-bottom:1px dashed var(--line)}
+.log time{font:12px var(--f-mono);color:var(--ink-2);font-variant-numeric:tabular-nums}
+.log .hl{color:#9a5d0c;font-weight:700}
+
+.drawer{position:absolute;left:max(16px,env(safe-area-inset-left,0px));bottom:16px;width:340px;background:var(--paper);border-radius:14px;box-shadow:0 8px 30px rgba(20,30,40,.2);padding:14px;display:flex;flex-direction:column;gap:10px;max-height:calc(100% - 100px);overflow-y:auto;box-sizing:border-box}
+.drawer .hd{display:flex;align-items:center;gap:10px}
+.drawer .hd .av{width:42px;height:42px}
+.drawer h3{margin:0;font-size:17px}
+.drawer .x{margin-left:auto;border:0;background:var(--paper-2);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px;color:var(--ink-2);flex:none}
+.kv{display:grid;grid-template-columns:64px 1fr;gap:5px 10px;font-size:12.5px;margin:0}
+.kv dt{color:var(--ink-2)} .kv dd{margin:0;min-width:0}
+.prompt{font-size:12.5px;line-height:1.6;background:var(--paper-2);padding:8px 10px;border-radius:8px}
+.sub{font:700 11px var(--f-body);color:var(--ink-2);letter-spacing:.04em}
+.mem{display:flex;flex-direction:column;font-size:12px;line-height:1.5}
+.mem div{display:grid;grid-template-columns:58px 1fr;gap:6px;border-bottom:1px dashed var(--line);padding:3px 0}
+.mem time{font:11px var(--f-mono);color:var(--ink-2)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+
+.modal{position:absolute;inset:0;background:rgba(28,35,41,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
+.sheet{background:var(--paper);border-radius:16px;width:min(880px,100%);max-height:100%;overflow:hidden;display:grid;grid-template-columns:300px 1fr;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.pv{background:radial-gradient(ellipse at 50% 35%,#f3f7f8,#cfdbe1);position:relative;min-height:340px}
+.pv canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.pv .cap{position:absolute;left:16px;bottom:14px;right:16px;font-size:12px;color:var(--ink-2)}
+.pv .cap b{display:block;font-size:18px;color:var(--ink)}
+.form{padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0;overflow-y:auto;max-height:min(86vh,760px)}
+.form h2{margin:0;font-family:var(--f-display);font-size:17px;font-weight:700;letter-spacing:.02em}
+.fld{display:flex;flex-direction:column;gap:6px;min-width:0}
+.fld>label,.fld>.lb{font-size:12px;font-weight:700;color:var(--ink-2)}
+.fld input[type=text],.fld select,.fld textarea{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:14px var(--f-body);background:var(--paper);color:var(--ink)}
+.fld textarea{resize:vertical;min-height:58px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sec{font:700 12px var(--f-body);color:var(--ink);border-top:1px solid var(--line);padding-top:12px;margin-top:2px}
+.sws{display:flex;gap:6px;flex-wrap:wrap}
+.sw{width:26px;height:26px;border-radius:50%;border:2px solid var(--paper);box-shadow:0 0 0 1px var(--line);cursor:pointer;padding:0}
+.sw.on{box-shadow:0 0 0 2px var(--ink)}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pills button{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:5px 11px;font:13px var(--f-body);cursor:pointer;color:var(--ink)}
+.pills button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.styles{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.logo-row{display:flex;align-items:center;gap:10px}
+.logo-pv{width:56px;height:56px;border-radius:10px;border:1px solid var(--line);background:var(--paper-2) center/contain no-repeat;flex:none}
+.logo-pv.empty{background-image:repeating-linear-gradient(45deg,var(--paper-2) 0 6px,var(--paper) 6px 12px)}
+.pdots{display:inline-flex;gap:2px;margin-right:6px;vertical-align:middle}.pdots i{width:10px;height:10px;border-radius:50%;display:block}
+.styles button{border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:8px;cursor:pointer;display:flex;flex-direction:column;gap:6px;align-items:stretch;font:600 12px var(--f-body);color:var(--ink)}
+.styles button i{height:34px;border-radius:6px;display:block;background:var(--sw)}
+.styles button.on{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+.plan{display:flex;flex-direction:column;gap:6px}
+.plan div{display:grid;grid-template-columns:34px 112px 1fr 92px;gap:6px;align-items:center}
+.plan .n{font:600 12px var(--f-mono);color:var(--ink-2)}
+.plan select,.plan input{border:1px solid var(--line);border-radius:7px;padding:6px 7px;font:12.5px var(--f-body);background:var(--paper);color:var(--ink);min-width:0}
+.range{display:flex;align-items:center;gap:10px}
+.range input{flex:1}
+.range b{font:600 14px var(--f-mono);min-width:44px}
+.foot{display:flex;gap:8px;justify-content:flex-end;align-items:center;margin-top:4px;flex-wrap:wrap}
+.foot .note{margin-right:auto;font-size:11.5px;color:var(--ink-2)}
+
+.login{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;background:linear-gradient(160deg,#1f2a26,#11161b)}
+.lcard{width:min(360px,100%);background:var(--paper);border-radius:16px;padding:26px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.lbrand{display:flex;flex-direction:column;gap:2px;margin-bottom:6px}
+.lbrand b{font-family:var(--f-display);font-size:18px;letter-spacing:.08em}
+.lbrand span{font-size:12.5px;color:var(--ink-2)}
+.lcard input{border:1px solid var(--line);border-radius:8px;padding:10px 12px;font:15px var(--f-body);background:var(--paper);color:var(--ink)}
+.lerr{font-size:12.5px;color:var(--bad)}
+.lcard .btn{justify-content:center;padding:11px}
+.out{background:var(--paper);color:var(--ink-2);font-weight:500}
+.toast{position:absolute;left:50%;top:66px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:999px;font-size:13px;z-index:30;box-shadow:0 6px 20px rgba(0,0,0,.25);transition:opacity .3s;max-width:calc(100% - 32px);text-align:center}
+.toast b{color:var(--amber)}
+
+@media (max-width:820px){
+  .panel{top:auto;left:max(16px,env(safe-area-inset-left,0px));width:auto;height:42%;bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+  .drawer{left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));width:auto;bottom:auto;top:150px;max-height:34%}
+  .sheet{grid-template-columns:1fr;overflow:auto}
+  .pv{min-height:230px;height:230px}
+  .form{max-height:none;overflow:visible}
+  .two{grid-template-columns:1fr}
+  .styles{grid-template-columns:repeat(3,1fr)}
+  .plan div{grid-template-columns:30px 1fr 1fr;}
+  .plan div select.dp{grid-column:2/4}
+  .spacer{display:none}
+}
+@media (prefers-reduced-motion:reduce){.toast,.tg::after{transition:none}}
+</style>
+
+<div id="app">
+  <div id="stage"></div>
+  <div id="labels"></div>
+
+  <header class="topbar">
+    <div class="brand"><b>AGENT OFFICE</b></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="clock">
+      <span class="t" id="clockT">09:00</span>
+      <span class="d" id="clockD">第 1 天</span>
+      <div class="seg" id="speed" role="group" aria-label="时间速度">
+        <button data-s="0" aria-label="暂停">❚❚</button>
+        <button data-s="1" class="on">1×</button>
+        <button data-s="3">3×</button>
+        <button data-s="8">8×</button>
+      </div>
+    </div>
+    <span class="spacer"></span>
+    <button class="btn pend" id="pendBtn" data-n="0">待你审批 <span id="pendN">0</span></button>
+    <button class="btn dark" id="newBBtn">＋ 新建大楼</button>
+    <button class="btn primary" id="newBtn">＋ 新建 Agent</button>
+    <button class="btn out" id="outBtn" hidden>退出</button>
+  </header>
+
+  <aside class="panel">
+    <div class="tabs" role="tablist">
+      <button class="tab on" data-tab="dec">审批 <span class="n" id="tabN" data-n="0">0</span></button>
+      <button class="tab" data-tab="task">任务</button>
+      <button class="tab" data-tab="team">团队</button>
+      <button class="tab" data-tab="bld">大楼</button>
+      <button class="tab" data-tab="back">后台</button>
+      <button class="tab" data-tab="log">动态</button>
+    </div>
+    <div class="pane" id="pane-dec"></div>
+    <div class="pane" id="pane-task" hidden></div>
+    <div class="pane" id="pane-team" hidden></div>
+    <div class="pane" id="pane-bld" hidden></div>
+    <div class="pane" id="pane-back" hidden></div>
+    <div class="pane" id="pane-log" hidden><div class="log" id="log"></div></div>
+  </aside>
+
+  <section class="drawer" id="drawer" hidden></section>
+
+  <div class="modal" id="modal" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+      <div class="pv" id="pv"><div class="cap"><b id="pvName">新员工</b><span id="pvRole">工程师</span></div></div>
+      <form class="form" id="form">
+        <h2 id="mTitle">新建 AI Agent</h2>
+        <div class="two">
+          <div class="fld"><label for="fName">名字</label><input type="text" id="fName" maxlength="12" placeholder="例如：Kai" required></div>
+          <div class="fld"><label for="fRole">职位</label><select id="fRole"></select></div>
+        </div>
+        <div class="fld"><label for="fBld">工作地点</label><select id="fBld"></select></div>
+        <div class="fld"><label for="fPrompt">性格 / 工作方式</label><textarea id="fPrompt" maxlength="240" placeholder="例如：做事细致，先写测试再写代码，不确定时先找项目经理。"></textarea></div>
+        <div class="sec">外貌</div>
+        <div class="two">
+          <div class="fld"><span class="lb">肤色</span><div class="sws" id="sSkin"></div></div>
+          <div class="fld"><span class="lb">眼睛</span><div class="sws" id="sEye"></div></div>
+        </div>
+        <div class="fld"><span class="lb">发型</span><div class="pills" id="sHair"></div></div>
+        <div class="fld"><span class="lb">发色</span><div class="sws" id="sHairC"></div></div>
+        <div class="sec">服装</div>
+        <div class="fld"><span class="lb">上装</span><div class="pills" id="sOutfit"></div></div>
+        <div class="two">
+          <div class="fld"><span class="lb">上装颜色</span><div class="sws" id="sTop"></div></div>
+          <div class="fld"><span class="lb">点缀色（领带 / 耳机 / 纽扣）</span><div class="sws" id="sAccent"></div></div>
+        </div>
+        <div class="fld" id="bottomTypeFld"><span class="lb">下装</span><div class="pills" id="sBottomT"></div></div>
+        <div class="two">
+          <div class="fld" id="bottomColFld"><span class="lb">下装颜色</span><div class="sws" id="sBottom"></div></div>
+          <div class="fld"><span class="lb">鞋子</span><div class="sws" id="sShoes"></div></div>
+        </div>
+        <div class="fld"><span class="lb">配饰</span><div class="pills" id="sAcc"><button type="button" data-v="glasses">眼镜</button><button type="button" data-v="headphones">耳机</button></div></div>
+        <div class="foot">
+          <span class="note" id="deskNote"></span>
+          <button type="button" class="btn ghost" id="cancelBtn">取消</button>
+          <button type="submit" class="btn primary" id="saveBtn">入职</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="bmodal" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="bTitle">
+      <div class="pv" id="bpv"><div class="cap"><b id="bpvName">新大楼</b><span id="bpvInfo"></span></div></div>
+      <form class="form" id="bform">
+        <h2 id="bTitle">新建大楼</h2>
+        <div class="two">
+          <div class="fld"><label for="bName">大楼名称</label><input type="text" id="bName" maxlength="12" required placeholder="例如：星河研发中心"></div>
+          <div class="fld"><label for="bSign">招牌文字</label><input type="text" id="bSign" maxlength="16" placeholder="楼顶招牌显示的文字"></div>
+        </div>
+        <div class="fld"><span class="lb">风格</span><div class="styles" id="bStyles"></div></div>
+        <div class="fld"><span class="lb">配色</span><div class="pills" id="bPal"></div></div>
+        <div class="fld"><span class="lb">Logo（楼顶招牌、大堂背景墙、门口立牌都会显示）</span><div class="logo-row"><span class="logo-pv empty" id="bLogoPv"></span><label class="btn ghost sm" for="bLogo">上传图片</label><input type="file" id="bLogo" accept="image/*" hidden><button type="button" class="btn ghost sm" id="bLogoDel" hidden>移除</button></div></div>
+        <div class="two">
+          <div class="fld"><label for="bPurpose">用途</label><select id="bPurpose"><option value="hq">总部</option><option value="rd">研发中心</option><option value="media">制作中心</option><option value="mixed">综合办公楼</option></select></div>
+          <div class="fld"><label for="bFloors">层数</label><div class="range"><input type="range" id="bFloors" min="2" max="12" value="5"><b id="bFloorsV">5 层</b></div></div>
+        </div>
+        <div class="fld"><span class="lb" style="display:flex;justify-content:space-between;align-items:center">楼层规划 <button type="button" class="btn ghost sm" id="bGen">重新生成规划</button></span><div class="plan" id="bPlan"></div></div>
+        <div class="foot">
+          <span class="note" id="bNote">改名称、用途或层数后，楼层规划会自动重新生成，生成后还可以逐层修改</span>
+          <button type="button" class="btn danger" id="bDel" hidden>拆除</button>
+          <button type="button" class="btn ghost" id="bCancel">取消</button>
+          <button type="submit" class="btn primary" id="bSave">建造</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+  <div class="login" id="login" hidden>
+    <form class="lcard" id="lform">
+      <div class="lbrand"><b>DK GLOBAL GROUP</b><span>AI Office</span></div>
+      <div class="fld"><label for="lUser">账号</label><input type="text" id="lUser" autocomplete="username" required value="admin"></div>
+      <div class="fld"><label for="lPass">密码</label><input type="password" id="lPass" autocomplete="current-password" required></div>
+      <div class="lerr" id="lErr" hidden></div>
+      <button class="btn primary" type="submit" id="lBtn">登录</button>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/geometries/RoundedBoxGeometry.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/environments/RoomEnvironment.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/utils/BufferGeometryUtils.js"></script>
+<script>
+(()=>{
+'use strict';
+const $=s=>document.querySelector(s);
+const $$=s=>[...document.querySelectorAll(s)];
+const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const V=(x,z)=>new THREE.Vector3(x,0,z);
+let uidN=Date.now()%100000;const uid=()=>(++uidN).toString(36);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const rm=n=>'RM '+n.toFixed(2);
+THREE.ColorManagement.legacyMode=false;
+
+/* =================== DATA =================== */
+const DEPTS=['管理层','项目管理','产品','技术','设计','制作','市场','财务','实习'];
+const PARTNERS=['柔佛物流','南洋支付','星洲传媒','新山云科技'];
+const FEATS=['支付模块','会员积分','多语言','离线模式','数据导出'];
+const LVL_COLOR=['#8b96a0','#56616b','#1f8a94','#2b55c9','#6b4fd8'];
+const LVL_NAME=['L0 实习','L1 专员','L2 主管','L3 经理','L4 管理层'];
+// decision template: [title, detail, options|null, major]
+const ROLES={
+  director:{label:'总监',level:4,dept:'管理层',kind:'complex',tasks:['审阅季度路线图','对齐各部门目标','评估合作提案','复盘上月数据'],
+    dec:[['批准 Q{q} 产品路线图','重点：支付模块、会员体系、多语言支持，预计 10 周完成。',null,1],['与{p}签订合作意向书','对方提供渠道资源，我方开放接口，合作期 12 个月，无前期费用。',null,1]]},
+  pm:{label:'项目经理',level:3,dept:'项目管理',kind:'text',tasks:['跟进任务进度','审核模型调用','整理项目周报','排查异常调用'],
+    dec:[['下周资源调配方案','把 {n} 个 Agent 从内部工具调去新品宣传项目，其余不变。',null,0]]},
+  manager:{label:'产品经理',level:3,dept:'产品',kind:'text',tasks:['整理需求文档','排期下个冲刺','和客户确认需求','写产品方案'],
+    dec:[['下个冲刺优先做「{f}」','评估了 3 个候选需求，这项用户反馈最多，预计 {n} 天完成。',null,0],['基础版定价调整为 {amt}/月','竞品均价更高，新价格预计提升付费转化。',null,1]]},
+  lead:{label:'技术主管',level:2,dept:'技术',kind:'code',tasks:['代码评审','拆分技术任务','排查线上告警','指导新人'],
+    dec:[['合并 {n} 个 PR 到主分支','全部通过评审和自动化测试。',null,0],['数据库迁移到新实例','停机约 15 分钟，建议今晚 23:00 执行。',null,1]]},
+  engineer:{label:'工程师',level:1,dept:'技术',kind:'code',tasks:['编写 API 接口','修复登录 Bug','写单元测试','优化查询性能','重构订单模块'],
+    dec:[['部署 {v} 到生产环境','包含 {n} 个修复：登录超时、推送重复、导出乱码。',null,1],['升级 Node.js 到 20 LTS','测试环境已验证通过。',null,0],['清理 90 天前的日志','可释放约 {n}0 GB 存储，已有备份。',null,0]]},
+  designer:{label:'设计师',level:1,dept:'设计',kind:'image',tasks:['画首页线框图','整理设计规范','绘制图标','做宣传海报'],
+    dec:[['首页改版方案','方案 A 信息密度高，方案 B 大图视觉强。',[['选方案 A','yes'],['选方案 B','yes'],['都不要','no']],0],['更换品牌主色','新主色在小屏上对比度更好，影响全部页面和招牌。',null,1]]},
+  video:{label:'视频制作',level:1,dept:'制作',kind:'video',tasks:['渲染短剧片段','生成产品宣传视频','视频翻译配字幕','剪辑素材'],
+    dec:[['发布短剧第 {n} 集到平台','已完成剪辑、字幕和封面，时长 2 分钟。',null,1],['改用竖屏 9:16 作为默认画幅','更适合短视频平台分发。',null,0]]},
+  marketing:{label:'市场专员',level:1,dept:'市场',kind:'text',tasks:['写推广文案','分析投放数据','策划活动','回复社群消息'],
+    dec:[['投放 {amt} 社交广告预算','目标新增 {n}00 名注册用户，投放 7 天。',null,1],['与{p}做联合推广','双方用户重合度高，无需费用。',null,0],['发送本周营销邮件','发给 {n},000 名订阅用户。',null,0]]},
+  finance:{label:'财务',level:1,dept:'财务',kind:'text',tasks:['核对账单','做月度报表','审批报销','预测现金流'],
+    dec:[['支付供应商发票 {amt}','服务器与云服务账单，已核对用量。',null,1],['续订协作工具订阅 {amt}/年','共 {n} 个席位。',null,0]]},
+  intern:{label:'实习生',level:0,dept:'实习',kind:'text',tasks:['整理资料','学习代码库','写测试用例','做竞品调研'],
+    dec:[['提交竞品调研报告','对比了 {n} 家竞品，建议关注两项差距。',null,0]]}
+};
+const NEEDS={director:[['项目管理','各项目进度汇总']],pm:[['技术','评估工作量'],['产品','确认验收标准']],manager:[['技术','评估新需求工作量'],['设计','新功能原型图']],lead:[['产品','确认需求优先级']],
+  engineer:[['设计','页面设计稿'],['产品','需求细节确认']],designer:[['产品','需求说明'],['制作','动效视频素材']],video:[['设计','分镜与封面'],['市场','投放平台要求']],
+  marketing:[['设计','广告素材图'],['财务','投放预算额度']],finance:[['管理层','季度预算审批']],intern:[['技术','代码库入门指导']]};
+const HIRE_ROLE={'设计':'designer','产品':'manager','技术':'engineer','财务':'finance','市场':'marketing','管理层':'director','制作':'video','项目管理':'pm'};
+const DEPT_WORK={'产品':'需求拆解','技术':'开发实现','设计':'出设计稿','制作':'视频制作','市场':'推广方案','财务':'成本核算','管理层':'方向把关'};
+const KW=[[/设计|界面|UI|海报|图|logo|品牌|封面/i,'设计'],[/视频|短剧|剪辑|拍|动画|字幕|短片/,'制作'],[/代码|开发|接口|API|bug|部署|系统|app|网站|后台|功能/i,'技术'],[/推广|营销|广告|投放|社群|文案|宣传/,'市场'],[/预算|成本|报价|发票|财务|账/,'财务'],[/需求|调研|规划|产品|用户/,'产品']];
+const MEET_TOPICS=['冲刺计划会','设计评审','周会','客户需求讨论','上线复盘','预算讨论'];
+
+const STYLES={
+  modern:{label:'现代玻璃',wallKind:'plain',wall:'#e9edef',inner:'#f4f2ee',slab:'#f4f5f3',trim:'#2a333c',trimText:'#e8edf0',frame:'#2a333c',glass:'#a9cfe0',stone:'#e6e6e2',accent:'#2b55c9',sign:'#ffffff',signBg:'#141a20',sw:['#e9edef','#a9cfe0','#2a333c']},
+  loft:{label:'工业红砖',wallKind:'brick',wall:'#a9533c',inner:null,innerSide:'#ece7e1',slab:'#e5ddd2',trim:'#2a2522',trimText:'#f3e6cf',frame:'#1e1b19',glass:'#b9d3dd',stone:'#cfc6b8',accent:'#e39a2d',sign:'#f6e7cc',signBg:'#1e1b19',sw:['#a9533c','#1e1b19','#e39a2d']},
+  hotel:{label:'奢华酒店',wallKind:'marble',wall:'#e9e1d3',inner:'#f6f1e8',slab:'#efe8db',trim:'#7a6440',trimText:'#fff6e0',frame:'#8a7350',glass:'#c8d8d8',stone:'#e9e1d3',accent:'#c9a04f',sign:'#e9c97f',signBg:'#1f2a26',sw:['#e9e1d3','#1f2a26','#c9a04f']},
+  future:{label:'未来科技',wallKind:'plain',wall:'#f2f5f7',inner:'#ffffff',slab:'#ffffff',trim:'#0e2a33',trimText:'#9ff3fa',frame:'#c3ccd3',glass:'#9fe3ea',stone:'#edf1f3',accent:'#16c2d3',sign:'#c6f8fb',signBg:'#0b1c22',sw:['#f2f5f7','#16c2d3','#0e2a33']},
+  chinese:{label:'新中式',wallKind:'slats',wall:'#5a3d2a',inner:'#efe6d8',slab:'#2c3036',trim:'#141619',trimText:'#e9c97f',frame:'#141619',glass:'#d9c9a8',stone:'#3a3d42',accent:'#c9a04f',sign:'#e9c97f',signBg:'#141619',sw:['#5a3d2a','#141619','#c9a04f']}
+};
+const PALETTES={
+  vivid:{label:'活力',c:['#e07a5f','#3d5a80','#81b29a','#f2cc8f','#9c6b98','#2a9d8f']},
+  fresh:{label:'清新',c:['#8ecae6','#219ebc','#90be6d','#f9c74f','#43aa8b','#577590']},
+  warm:{label:'暖木',c:['#bc6c25','#dda15e','#606c38','#c1666b','#d4a373','#6b705c']},
+  elegant:{label:'雅致',c:['#22333b','#c6ac8f','#5e503f','#9a8c98','#4a4e69','#b56576']}
+};
+const FT={lobby:'大堂',work:'办公层',studio:'视频工作室',meeting:'会议中心',cafe:'咖啡厅',exec:'总裁层'};
+const FLOOR_COL={lobby:'#dcdcd8',work:'#e6e6e1',studio:'#3c4148',meeting:'#d3d9e6',cafe:'#c99f74',exec:'#323a43'};
+
+const SKINS=['#f7dcc8','#efc6a6','#d9a27c','#b97c55','#8d5a3b','#5e3b27'];
+const EYES=['#3b2a20','#1d1a19','#4b6b8a','#4f7a52'];
+const HAIRS=[['short','短发'],['fringe','刘海'],['long','长发'],['bob','波波头'],['bun','丸子头'],['pony','马尾'],['curly','卷发'],['buzz','寸头'],['none','光头']];
+const HAIRC=['#1b1716','#3b2a20','#6b4630','#a87a4f','#d6b27a','#9aa0a6','#7a2e2a'];
+const OUTFITS=[['tee','T恤'],['shirt','衬衫'],['blazer','西装'],['hoodie','卫衣'],['mandarin','中式立领'],['dress','连衣裙']];
+const BOTTOMT=[['pants','长裤'],['shorts','短裤'],['skirt','半身裙']];
+const TOPS=['#f4f4f1','#1f2a38','#2b55c9','#9fc3e6','#e39a2d','#c2453b','#2f8f5b','#6b4fd8','#e7b9c4','#1f8a94','#8a6a4a','#2a2f35'];
+const BOTS=['#1f2a38','#2a2f35','#3b4a66','#6d5a46','#b9b2a5','#e9e6df','#5a3a3a'];
+const SHOES=['#f2f2ef','#2a2f35','#6d4a32','#c2453b'];
+const ACCENTS=['#c2453b','#2b55c9','#e39a2d','#1c2329','#f4f4f1'];
+
+const fill=s=>s.replace(/\{n\}/g,()=>ri(2,5)).replace(/\{v\}/g,()=>`v1.${ri(2,9)}.${ri(0,9)}`)
+  .replace(/\{amt\}/g,()=>'RM '+(ri(8,60)*100).toLocaleString()).replace(/\{q\}/g,()=>ri(1,4))
+  .replace(/\{p\}/g,()=>pick(PARTNERS)).replace(/\{f\}/g,()=>pick(FEATS));
+
+const MODELS0=[
+  {id:'m1',name:'Claude Opus',kind:'text',host:'cloud',cost:.35,note:'复杂推理 / 决策',on:true,calls:0,vault:'v1'},
+  {id:'m2',name:'Claude Haiku',kind:'text',host:'cloud',cost:.02,note:'快速日常',on:true,calls:0,vault:'v1'},
+  {id:'m3',name:'Qwen 开源（自建）',kind:'text',host:'self',cost:.004,note:'日常文本、代码',on:true,calls:0},
+  {id:'m4',name:'Wan 视频（自建 GPU）',kind:'video',host:'self',cost:.6,note:'短剧片段、宣传片',on:true,calls:0},
+  {id:'m5',name:'云端视频 API',kind:'video',host:'cloud',cost:4.5,note:'自建不可用时备用',on:true,calls:0,vault:'v7'},
+  {id:'m6',name:'Flux 图像（自建）',kind:'image',host:'self',cost:.03,note:'设计素材',on:true,calls:0},
+  {id:'m7',name:'云端图像 API',kind:'image',host:'cloud',cost:.25,note:'备用',on:true,calls:0,vault:'v8'}];
+const ROUTES={text:{label:'日常文本',chain:['m3','m2']},code:{label:'写代码',chain:['m3','m1']},complex:{label:'复杂问题',chain:['m1']},image:{label:'图像设计',chain:['m6','m7']},video:{label:'视频生成',chain:['m4','m5']}};
+const VAULT0=[
+  {id:'v1',name:'Claude API Key',kind:'API Key',roles:Object.keys(ROLES),approval:false,uses:0},
+  {id:'v2',name:'Supabase service key',kind:'数据库连接',roles:['lead','engineer'],approval:false,uses:0},
+  {id:'v3',name:'GitHub Token',kind:'OAuth Token',roles:['lead','engineer','intern'],approval:false,uses:0},
+  {id:'v4',name:'Figma',kind:'OAuth Token',roles:['designer'],approval:false,uses:0},
+  {id:'v5',name:'Meta 广告账户',kind:'登录账号',roles:['marketing'],approval:true,uses:0},
+  {id:'v6',name:'公司网银登录',kind:'登录账号',roles:['finance'],approval:true,uses:0},
+  {id:'v7',name:'云端视频 API Key',kind:'API Key',roles:['video'],approval:false,uses:0},
+  {id:'v8',name:'云端图像 API Key',kind:'API Key',roles:['designer','marketing'],approval:false,uses:0},
+  {id:'v9',name:'自建 GPU 服务器 SSH',kind:'登录账号',roles:['lead'],approval:false,uses:0}];
+const CAP_AGENT=25, CAP_MONTH=3000;
+const PLUGINS0=[
+  {id:'p1',name:'Telegram 机器人',kind:'bot',desc:'审批推送、每日简报、结论通知，消息里直接点「批准 / 驳回」',status:'待配置',fields:[['token','Bot Token'],['chat','你的 Chat ID']]},
+  {id:'p2',name:'Google Drive',kind:'oauth',desc:'交付文件自动存进你的 Drive，按项目整理好文件夹，发链接给你',status:'待授权'},
+  {id:'p3',name:'Facebook 主页',kind:'oauth',desc:'市场部发帖、看数据、回复留言',status:'待授权',by:'Ravi（市场专员）申请：投放和发帖需要'}];
+
+/* =================== THREE =================== */
+const stage=$('#stage');
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setClearColor(0x000000,0);
+renderer.outputEncoding=THREE.sRGBEncoding;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+stage.appendChild(renderer.domElement);
+const scene=new THREE.Scene();
+const pmrem=new THREE.PMREMGenerator(renderer);
+const envTex=pmrem.fromScene(new THREE.RoomEnvironment(),0.04).texture;
+scene.environment=envTex;
+const camera=new THREE.PerspectiveCamera(36,1,0.3,400);
+camera.position.set(0,60,70);
+const controls=new THREE.OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true;controls.maxPolarAngle=1.28;controls.minDistance=6;controls.maxDistance=160;
+const hemi=new THREE.HemisphereLight(0xe6f3ff,0x9a8f78,0.45);scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xfff0dc,1.55);sun.castShadow=true;sun.shadow.mapSize.set(innerWidth<820?2048:4096,innerWidth<820?2048:4096);Object.assign(sun.shadow.camera,{left:-55,right:55,top:55,bottom:-55,near:1,far:260});sun.shadow.bias=-0.0004;sun.shadow.normalBias=0.02;
+scene.add(sun);scene.add(sun.target);
+function setShadow(r,px,py,pz){Object.assign(sun.shadow.camera,{left:-r,right:r,top:r,bottom:-r,near:1,far:py*3});sun.shadow.camera.updateProjectionMatrix();sun.position.set(px,py,pz);sun.target.position.set(0,0,0);}
+
+const matCache={},geoCache={};
+const mat=(c,o)=>{if(o&&('noCast' in o||'m' in o)){o=Object.assign({},o);delete o.noCast;delete o.m;if(!Object.keys(o).length)o=null;}const k=c+'|'+(o?JSON.stringify(o):'');return matCache[k]||(matCache[k]=new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.7,metalness:0},o||{})));};
+const cachedGeos=new Set();const geo=(k,f)=>{if(!geoCache[k]){geoCache[k]=f();cachedGeos.add(geoCache[k]);}return geoCache[k];};
+const rgeo=(w,h,d,r)=>geo(`rb${w}_${h}_${d}_${r}`,()=>new THREE.RoundedBoxGeometry(w,h,d,2,Math.min(r,w/2-0.001,h/2-0.001,d/2-0.001)));
+const bgeo=(w,h,d)=>geo(`b${w}_${h}_${d}`,()=>new THREE.BoxGeometry(w,h,d));
+function put(m,x,y,z,p,cast=true){m.position.set(x,y,z);m.castShadow=cast;m.receiveShadow=true;p.add(m);return m;}
+const rbox=(p,w,h,d,r,c,x,y,z,o)=>put(new THREE.Mesh(rgeo(w,h,d,r),o&&o.m?o.m:mat(c,o)),x,y,z,p,!(o&&o.noCast));
+const box=(p,w,h,d,c,x,y,z,o)=>put(new THREE.Mesh(bgeo(w,h,d),o&&o.m?o.m:mat(c,o)),x,y,z,p,!(o&&o.noCast));
+const cyl=(p,rt,rb,h,c,x,y,z,o)=>put(new THREE.Mesh(geo(`c${rt}_${rb}_${h}`,()=>new THREE.CylinderGeometry(rt,rb,h,16)),mat(c,o)),x,y,z,p);
+const sphere=(p,r,c,x,y,z,o)=>put(new THREE.Mesh(geo(`s${r}`,()=>new THREE.SphereGeometry(r,16,12)),mat(c,o)),x,y,z,p);
+function plane(p,x1,z1,x2,z2,c,y,o){const m=new THREE.Mesh(geo(`p${x2-x1}_${z2-z1}`,()=>new THREE.PlaneGeometry(x2-x1,z2-z1)),mat(c,o));m.rotation.x=-Math.PI/2;m.position.set((x1+x2)/2,y||0.01,(z1+z2)/2);m.receiveShadow=true;p.add(m);return m;}
+function textTex(text,o){
+  o=Object.assign({w:1024,h:200,bg:null,fg:'#1c2329',size:104,weight:700},o||{});
+  const c=document.createElement('canvas');c.width=o.w;c.height=o.h;const g=c.getContext('2d');
+  if(o.bg){g.fillStyle=o.bg;g.fillRect(0,0,o.w,o.h);}
+  let size=o.size;g.font=`${o.weight} ${size}px "Noto Sans SC","PingFang SC",sans-serif`;
+  while(g.measureText(text).width>o.w*0.9&&size>20){size-=6;g.font=`${o.weight} ${size}px "Noto Sans SC","PingFang SC",sans-serif`;}
+  g.fillStyle=o.fg;g.textAlign='center';g.textBaseline='middle';g.fillText(text,o.w/2,o.h/2+size*0.04);
+  const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.anisotropy=4;return t;
+}
+function textPlane(p,text,w,o,x,y,z,flat){
+  const t=textTex(text,o);const h=w*(o&&o.h||200)/(o&&o.w||1024);
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:t,transparent:true,depthWrite:false,toneMapped:false}));
+  m.material.userData.own=true;if(flat)m.rotation.x=-Math.PI/2;m.position.set(x,y,z);p.add(m);return m;
+}
+function disposeGroup(g){g.traverse(o=>{if(o.userData&&o.userData.agentId)return;if(o.geometry&&!cachedGeos.has(o.geometry))o.geometry.dispose();if(o.material&&o.material.userData&&o.material.userData.own&&o.material.map)o.material.map.dispose();});while(g.children.length)g.remove(g.children[0]);}
+
+/* =================== AVATAR =================== */
+const capG=(r,l)=>geo(`cap${r}_${l}`,()=>new THREE.CapsuleGeometry(r,l,5,12));
+const sphG=(r,w=20,h=14)=>geo(`sg${r}_${w}`,()=>new THREE.SphereGeometry(r,w,h));
+const TORSO=geo('torso',()=>new THREE.LatheGeometry([[0,0],[.15,0],[.175,.05],[.182,.18],[.198,.34],[.2,.44],[.16,.52],[.08,.56],[0,.57]].map(([r,y])=>new THREE.Vector2(r,y)),36));
+function makeAvatar(L){
+  const g=new THREE.Group();
+  const skin=mat(L.skin,{roughness:.55});
+  const topM=mat(L.top,{roughness:.82});
+  const botM=mat(L.bottom,{roughness:.86});
+  const hairM=mat(L.hairColor,{roughness:.5});
+  const shoeM=mat(L.shoes,{roughness:.45});
+  const accM=mat(L.accent,{roughness:.5});
+  const dark=mat('#16191c',{roughness:.3});
+  const m=(gg,mm,p,x,y,z,sx,sy,sz)=>{const o=new THREE.Mesh(gg,mm);o.position.set(x||0,y||0,z||0);if(sx!==undefined)o.scale.set(sx,sy,sz);o.castShadow=true;p.add(o);return o;};
+  const dress=L.outfit==='dress',bt=dress?'skirt':L.bottomType,bare=bt!=='pants';
+  const longSleeve=['shirt','blazer','hoodie','mandarin'].includes(L.outfit);
+  const hip=new THREE.Group();hip.position.y=0.86;g.add(hip);
+  // legs
+  const legs=[-0.092,0.092].map(x=>{
+    const up=new THREE.Group();up.position.set(x,-0.02,0);hip.add(up);
+    m(capG(0.08,0.3),bare?skin:botM,up,0,-0.2,0);
+    if(bt==='shorts')m(capG(0.092,0.12),botM,up,0,-0.08,0);
+    const kn=new THREE.Group();kn.position.y=-0.4;up.add(kn);
+    m(capG(0.068,0.28),bare?skin:botM,kn,0,-0.19,0);
+    m(sphG(0.08),shoeM,kn,0,-0.395,0.045,1,0.6,1.55);
+    return {up,kn};
+  });
+  if(bt==='pants'||bt==='shorts')m(sphG(0.17),botM,hip,0,-0.01,0,1.02,0.5,0.76);
+  if(bt==='skirt'){const sk=new THREE.Mesh(geo('skirt',()=>new THREE.CylinderGeometry(0.19,dress?0.31:0.28,dress?0.44:0.36,36,1,true)),new THREE.MeshStandardMaterial({color:dress?L.top:L.bottom,roughness:.8,side:THREE.DoubleSide}));sk.position.y=dress?-0.2:-0.16;sk.castShadow=true;hip.add(sk);}
+  // torso
+  const torso=m(TORSO,topM,hip,0,-0.04,0,1,1,0.74);
+  if(L.outfit==='shirt'){
+    [-1,1].forEach(s=>{const c=m(rgeo(.1,.03,.07,.012),topM,hip,s*0.045,0.52,0.075);c.rotation.set(0.5,0,s*0.5);});
+    for(let i=0;i<4;i++)m(sphG(0.011,10,8),accM,hip,0,0.44-i*0.1,0.142+(i>1?-.004:0));
+  }
+  if(L.outfit==='blazer'){
+    const shirt=new THREE.Mesh(geo('vneck',()=>{const s=new THREE.Shape();s.moveTo(-.06,0);s.lineTo(.06,0);s.lineTo(0,-.2);s.lineTo(-.06,0);return new THREE.ShapeGeometry(s);}),mat('#f6f6f3'));
+    shirt.position.set(0,0.53,0.142);shirt.rotation.x=-0.18;hip.add(shirt);
+    m(capG(0.016,0.13),accM,hip,0,0.4,0.15);
+    [-1,1].forEach(s=>{const lp=m(rgeo(.05,.22,.02,.008),mat(L.top,{roughness:.6}),hip,s*0.06,0.43,0.142);lp.rotation.z=s*0.35;});
+    m(sphG(0.012,10,8),dark,hip,0,0.24,0.146);
+  }
+  if(L.outfit==='hoodie'){
+    const hood=m(geo('hood',()=>new THREE.TorusGeometry(0.115,0.055,12,28)),topM,hip,0,0.53,-0.04);hood.rotation.x=Math.PI/2.4;
+    m(rgeo(.2,.1,.04,.02),topM,hip,0,0.14,0.13);
+    [-1,1].forEach(s=>m(capG(0.007,0.08),accM,hip,s*0.035,0.42,0.15));
+  }
+  if(L.outfit==='mandarin'){
+    m(geo('mcol',()=>new THREE.CylinderGeometry(0.072,0.08,0.06,28,1,true)),topM,hip,0,0.585,0.005);
+    for(let i=0;i<3;i++){const b=m(capG(0.008,0.04),accM,hip,0.045,0.46-i*0.09,0.14);b.rotation.z=Math.PI/2;}
+  }
+  if(dress)m(geo('belt',()=>new THREE.TorusGeometry(0.168,0.012,8,36)),accM,hip,0,0.06,0,1,1,0.74).rotation.x=Math.PI/2;
+  // arms
+  const arms=[-1,1].map(s=>{
+    const sh=new THREE.Group();sh.position.set(s*0.205,0.47,0);sh.rotation.z=s*0.09;hip.add(sh);
+    m(sphG(0.07),topM,sh,0,0,0);
+    if(longSleeve)m(capG(0.056,0.18),topM,sh,0,-0.14,0);
+    else{m(capG(0.064,0.06),topM,sh,0,-0.06,0);m(capG(0.05,0.16),skin,sh,0,-0.16,0);}
+    const el=new THREE.Group();el.position.y=-0.27;sh.add(el);
+    m(capG(0.048,0.15),longSleeve?topM:skin,el,0,-0.1,0);
+    if(longSleeve)m(geo('cuff',()=>new THREE.CylinderGeometry(0.052,0.052,0.03,20)),L.outfit==='blazer'?mat('#f6f6f3'):topM,el,0,-0.2,0);
+    m(sphG(0.05),skin,el,0,-0.255,0.005,0.95,1.1,0.85);
+    return {sh,el};
+  });
+  // neck & head
+  m(capG(0.05,0.06),skin,hip,0,0.6,0);
+  const head=new THREE.Group();head.position.y=0.65;hip.add(head);
+  m(sphG(0.2,32,24),skin,head,0,0.2,0,1,1.07,0.98);
+  [-1,1].forEach(s=>m(sphG(0.045),skin,head,s*0.195,0.19,-0.005,0.55,1,0.8));
+  const eyes=[-1,1].map(s=>{
+    const e=new THREE.Group();e.position.set(s*0.072,0.215,0.168);head.add(e);
+    m(sphG(0.036),mat('#ffffff',{roughness:.25}),e,0,0,0,1,1.06,0.55);
+    m(sphG(0.025),mat(L.eye,{roughness:.2}),e,0,-0.003,0.013,1,1.02,0.5);
+    m(sphG(0.0125,14,10),dark,e,0,-0.003,0.021);
+    m(sphG(0.0065,10,8),mat('#ffffff',{emissive:'#ffffff',emissiveIntensity:1}),e,0.009,0.008,0.026);
+    return e;
+  });
+  [-1,1].forEach(s=>{const b=m(capG(0.011,0.05),hairM,head,s*0.074,0.272,0.178);b.rotation.z=Math.PI/2+s*0.12;});
+  m(sphG(0.025),mat(L.skin,{roughness:.5}),head,0,0.165,0.193,0.85,0.75,0.8);
+  const mouth=new THREE.Group();mouth.position.set(0,0.112,0.184);head.add(mouth);
+  const lip=m(geo('mouth',()=>new THREE.TorusGeometry(0.03,0.0075,8,24,Math.PI)),mat('#a3463e',{roughness:.4}),mouth,0,0.018,0);lip.rotation.z=Math.PI;
+  const blush=mat('#f08a8a',{transparent:true,opacity:.22,roughness:.9,depthWrite:false});
+  [-1,1].forEach(s=>{const c=new THREE.Mesh(sphG(0.032),blush);c.position.set(s*0.115,0.15,0.152);c.scale.set(1,0.65,0.4);head.add(c);});
+  // hair
+  const H=L.hair;
+  const cap=(th,r,tilt)=>{const c=m(geo(`hc${th}_${r}`,()=>new THREE.SphereGeometry(r,40,24,0,Math.PI*2,0,Math.PI*th)),hairM,head,0,0.205,-0.004,1.02,1.07,1);c.rotation.x=tilt;return c;};
+  const fringe=()=>{const f=m(sphG(0.11),hairM,head,0.035,0.355,0.125,1.55,0.45,0.72);f.rotation.z=0.22;};
+  if(H!=='none'){
+    if(H==='buzz'){cap(0.5,0.205,-0.32);}
+    else if(H==='curly'){cap(0.52,0.214,-0.4);
+      for(let i=0;i<26;i++){const t=i/26*Math.PI*2*3.2,y=1-i/26*1.15,rr=Math.sqrt(Math.max(0,1-y*y));const d=new THREE.Vector3(Math.cos(t)*rr,y,Math.sin(t)*rr);
+        if(d.z>0.55&&d.y<0.62)continue;m(sphG(0.068),hairM,head,d.x*0.205,0.21+d.y*0.215,d.z*0.2-0.01);}}
+    else{cap(0.55,0.214,-0.45);if(H!=='bun'&&H!=='pony')fringe();m(sphG(0.2),hairM,head,0,0.17,-0.045,1.03,0.75,0.92);}
+    if(H==='fringe'){const f=m(sphG(0.12),hairM,head,0,0.3,0.14,1.6,0.5,0.6);}
+    if(H==='long'){m(capG(0.12,0.26),hairM,head,0,0.02,-0.1,1.6,1,0.55);[-1,1].forEach(s=>m(capG(0.048,0.22),hairM,head,s*0.168,0.07,0.03));}
+    if(H==='bob'){const b=new THREE.Mesh(geo('bob',()=>new THREE.SphereGeometry(0.236,40,20,Math.PI*0.82,Math.PI*1.36,Math.PI*0.32,Math.PI*0.34)),new THREE.MeshStandardMaterial({color:L.hairColor,roughness:.5,side:THREE.DoubleSide}));b.position.set(0,0.2,0);b.castShadow=true;head.add(b);}
+    if(H==='bun'){m(sphG(0.088),hairM,head,0,0.44,-0.07);m(geo('tie',()=>new THREE.TorusGeometry(0.05,0.012,8,20)),accM,head,0,0.385,-0.055).rotation.x=Math.PI/2.4;}
+    if(H==='pony'){const p=m(capG(0.058,0.22),hairM,head,0,0.17,-0.25);p.rotation.x=0.45;m(sphG(0.03),accM,head,0,0.29,-0.21);}
+  }
+  if(L.glasses){const gm=mat('#1c2329',{roughness:.3});
+    [-1,1].forEach(s=>{const r=new THREE.Mesh(geo('lens',()=>new THREE.TorusGeometry(0.044,0.0065,8,28)),gm);r.position.set(s*0.072,0.215,0.198);head.add(r);
+      const t=m(bgeo(0.006,0.006,0.16),gm,head,s*0.12,0.222,0.12);t.rotation.y=s*0.35;});
+    m(capG(0.005,0.035),gm,head,0,0.222,0.205).rotation.z=Math.PI/2;}
+  if(L.headphones){const band=m(geo('band',()=>new THREE.TorusGeometry(0.228,0.018,10,32,Math.PI)),accM,head,0,0.2,-0.01);
+    [-1,1].forEach(s=>{const c=m(geo('cup',()=>new THREE.CylinderGeometry(0.058,0.058,0.05,24)),accM,head,s*0.218,0.19,-0.01);c.rotation.z=Math.PI/2;});}
+  mergeLocal(g);
+  return {g,hip,legs,arms,head,eyes,mouth,blink:Math.random()*4};
+}
+const ringGeo=new THREE.RingGeometry(0.36,0.46,40);
+const ringMat=new THREE.MeshBasicMaterial({color:'#2b55c9',transparent:true,opacity:.85,depthWrite:false,toneMapped:false});
+const shadowTex=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');const gr=g.createRadialGradient(32,32,2,32,32,32);gr.addColorStop(0,'rgba(0,0,0,.35)');gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(0,0,64,64);return new THREE.CanvasTexture(c);})();
+const blobMat=new THREE.MeshBasicMaterial({map:shadowTex,transparent:true,depthWrite:false});
+
+/* =================== TEXTURES & MERGING =================== */
+const TEXC={};
+const sh=(hex,f)=>{const n=parseInt(hex.slice(1),16);const k=v=>Math.max(0,Math.min(255,Math.round(f>0?v+(255-v)*f:v*(1+f))));return '#'+[n>>16,(n>>8)&255,n&255].map(v=>k(v).toString(16).padStart(2,'0')).join('');};
+function ctex(key,size,draw){if(TEXC[key])return TEXC[key];const c=document.createElement('canvas');c.width=c.height=size;const g=c.getContext('2d');let sd=7;for(const ch of key)sd=(sd*31+ch.charCodeAt(0))%2147483647;const R=()=>{sd=(sd*16807)%2147483647;return (sd-1)/2147483646;};draw(g,size,R);const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=8;return TEXC[key]=t;}
+const TX={
+  wood:b=>ctex('wood'+b,512,(g,s,R)=>{const rows=8,ph=s/rows;for(let r=0;r<rows;r++){let x=-Math.floor(R()*200);while(x<s){const len=160+R()*160;g.fillStyle=sh(b,(R()-.5)*.16);g.fillRect(x,r*ph,len,ph);g.strokeStyle='rgba(60,35,15,.09)';g.lineWidth=1;for(let k=0;k<6;k++){const y=r*ph+3+k*ph/6+R()*3;g.beginPath();g.moveTo(x,y);g.bezierCurveTo(x+len*.33,y+R()*4-2,x+len*.66,y+R()*4-2,x+len,y);g.stroke();}g.fillStyle='rgba(0,0,0,.22)';g.fillRect(x,r*ph,2,ph);x+=len;}g.fillStyle='rgba(0,0,0,.25)';g.fillRect(0,r*ph,s,2);}}),
+  brick:b=>ctex('brick'+b,512,(g,s,R)=>{g.fillStyle='#d8cfc4';g.fillRect(0,0,s,s);const bh=32,bw=64;for(let y=0;y<s/bh;y++)for(let x=-1;x<s/bw+1;x++){g.fillStyle=sh(b,(R()-.5)*.24);g.fillRect(x*bw+(y%2?bw/2:0)+2,y*bh+2,bw-4,bh-4);}}),
+  marble:b=>ctex('marble'+b,512,(g,s,R)=>{g.fillStyle=b;g.fillRect(0,0,s,s);for(let i=0;i<26;i++){g.strokeStyle=`rgba(110,110,120,${.04+R()*.1})`;g.lineWidth=.6+R()*1.8;g.beginPath();let x=R()*s,y=R()*s;g.moveTo(x,y);for(let k=0;k<5;k++){x+=(R()-.3)*140;y+=(R()-.5)*90;g.lineTo(x,y);}g.stroke();}g.strokeStyle='rgba(255,255,255,.5)';g.lineWidth=2;for(let i=0;i<2;i++)for(let j=0;j<2;j++)g.strokeRect(i*s/2,j*s/2,s/2,s/2);}),
+  carpet:b=>ctex('carpet'+b,256,(g,s,R)=>{g.fillStyle=b;g.fillRect(0,0,s,s);for(let i=0;i<4000;i++){g.fillStyle=`rgba(${R()<.5?'255,255,255':'0,0,0'},${R()*.06})`;g.fillRect(R()*s,R()*s,2,2);}}),
+  concrete:b=>ctex('conc'+b,512,(g,s,R)=>{g.fillStyle=b;g.fillRect(0,0,s,s);for(let i=0;i<9000;i++){g.fillStyle=`rgba(${R()<.5?'255,255,255':'0,0,0'},${R()*.05})`;g.fillRect(R()*s,R()*s,1.5,1.5);}g.strokeStyle='rgba(0,0,0,.14)';g.strokeRect(0,0,s,s);}),
+  paving:b=>ctex('pave'+b,512,(g,s,R)=>{g.fillStyle=sh(b,-.25);g.fillRect(0,0,s,s);const n=4,w=s/n,h=s/n/2;for(let y=0;y<n*2;y++)for(let x=-1;x<=n;x++){g.fillStyle=sh(b,(R()-.5)*.12);g.fillRect(x*w+(y%2?w/2:0)+3,y*h+3,w-6,h-6);}}),
+  grass:()=>ctex('grass',512,(g,s,R)=>{g.fillStyle='#8cc178';g.fillRect(0,0,s,s);for(let i=0;i<9000;i++){g.fillStyle=['#7fb66b','#99ca83','#86bb70','#a3d18c'][Math.floor(R()*4)];g.fillRect(R()*s,R()*s,2,4);}}),
+  slats:b=>ctex('slat'+b,256,(g,s,R)=>{g.fillStyle=sh(b,-.4);g.fillRect(0,0,s,s);for(let x=0;x<s;x+=16){g.fillStyle=sh(b,(R()-.5)*.12);g.fillRect(x+2,0,12,s);}})
+};
+const texMat=(kind,base,o)=>{const k='T'+kind+base+JSON.stringify(o||{});return matCache[k]||(matCache[k]=new THREE.MeshStandardMaterial(Object.assign({map:TX[kind](base),roughness:.75},o||{})));};
+function uvs(geo,sx,sy){const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*sx,uv.getY(i)*sy);return geo;}
+function tplane(p,x1,z1,x2,z2,m,y,tile){const o=new THREE.Mesh(uvs(new THREE.PlaneGeometry(x2-x1,z2-z1),(x2-x1)/tile,(z2-z1)/tile),m);o.rotation.x=-Math.PI/2;o.position.set((x1+x2)/2,y||0.01,(z1+z2)/2);o.receiveShadow=true;p.add(o);return o;}
+function tbox(p,w,h,d,m,x,y,z,tile,cast){const o=new THREE.Mesh(uvs(new THREE.BoxGeometry(w,h,d),Math.max(w,d)/tile,h/tile),m);o.position.set(x,y,z);o.castShadow=!!cast;o.receiveShadow=true;p.add(o);return o;}
+const winGlass=c=>mat(c,{transparent:true,opacity:.3,roughness:.05,metalness:.25,depthWrite:false});
+const BGU=THREE.BufferGeometryUtils;
+function prepGeo(geo,m4){const g=geo.index?geo.toNonIndexed():geo.clone();Object.keys(g.attributes).forEach(k=>{if(!['position','normal','uv'].includes(k))g.deleteAttribute(k);});
+  if(!g.attributes.uv)g.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(g.attributes.position.count*2),2));if(!g.attributes.normal)g.computeVertexNormals();g.morphAttributes={};g.applyMatrix4(m4);return g;}
+function mergeStatic(root){
+  root.updateMatrixWorld(true);const inv=new THREE.Matrix4().copy(root.matrixWorld).invert();const buckets=new Map(),kill=[];
+  root.traverse(o=>{if(!o.isMesh||o.isInstancedMesh||o.userData.keep)return;
+    const k=o.material.uuid+'|'+(o.castShadow?1:0)+'|'+(o.userData.noPick?1:0);
+    if(!buckets.has(k))buckets.set(k,{m:o.material,cast:o.castShadow,noPick:o.userData.noPick,g:[]});
+    buckets.get(k).g.push(prepGeo(o.geometry,new THREE.Matrix4().multiplyMatrices(inv,o.matrixWorld)));kill.push(o);});
+  kill.forEach(o=>{o.parent.remove(o);if(!cachedGeos.has(o.geometry))o.geometry.dispose();});
+  buckets.forEach(b=>{const geo=b.g.length===1?b.g[0]:BGU.mergeBufferGeometries(b.g,false);if(b.g.length>1)b.g.forEach(x=>x.dispose());if(!geo)return;
+    const mesh=new THREE.Mesh(geo,b.m);mesh.castShadow=b.cast;mesh.receiveShadow=true;if(b.noPick){mesh.userData.noPick=true;mesh.raycast=()=>{};}root.add(mesh);});
+}
+function mergeLocal(node){
+  const buckets=new Map();
+  node.children.slice().forEach(c=>{
+    if(c.isMesh&&!c.userData.keep&&!c.children.length){c.updateMatrix();const k=c.material.uuid+'|'+(c.castShadow?1:0);if(!buckets.has(k))buckets.set(k,{m:c.material,cast:c.castShadow,g:[]});buckets.get(k).g.push(prepGeo(c.geometry,c.matrix));node.remove(c);}
+    else if(!c.isMesh)mergeLocal(c);
+  });
+  buckets.forEach(b=>{const geo=b.g.length===1?b.g[0]:BGU.mergeBufferGeometries(b.g,false);const mesh=new THREE.Mesh(geo,b.m);mesh.castShadow=b.cast;node.add(mesh);});
+}
+const IMG={};
+function logoImg(url,cb){let im=IMG[url];if(!im){im=new Image();im.src=url;IMG[url]=im;}if(!im.complete)im.addEventListener('load',cb,{once:true});return im;}
+function signTexture(b,o){
+  const st=STYLES[b.style],W=o.w||2048,H=o.h||400;const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
+  const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.anisotropy=8;
+  const draw=()=>{g.clearRect(0,0,W,H);const text=o.text||b.sign||b.name,fg=o.fg||st.sign,pad=H*0.12;
+    const im=b.logo?logoImg(b.logo,()=>{draw();t.needsUpdate=true;}):null;const logoW=im&&im.complete&&im.naturalWidth?H-pad*2:0;
+    let size=H*0.48;const font=()=>`700 ${size}px "Noto Sans SC","PingFang SC",sans-serif`;g.font=font();let tw=g.measureText(text).width;const maxW=W-pad*2-(logoW?logoW+pad:0);
+    while(tw>maxW&&size>20){size-=8;g.font=font();tw=g.measureText(text).width;}
+    let x=(W-((logoW?logoW+pad*0.8:0)+tw))/2;
+    if(logoW){const ar=im.naturalWidth/im.naturalHeight;const lw=ar>1?logoW:logoW*ar,lh=ar>1?logoW/ar:logoW;g.drawImage(im,x+(logoW-lw)/2,(H-lh)/2,lw,lh);x+=logoW+pad*0.8;}
+    g.fillStyle=fg;g.textBaseline='middle';g.textAlign='left';if(o.glow){g.shadowColor=fg;g.shadowBlur=H*0.07;}g.fillText(text,x,H/2+size*0.04);g.shadowBlur=0;};
+  draw();return t;
+}
+function signPlane(p,b,o,w,x,y,z,rotY){const tex=signTexture(b,o);const m=new THREE.Mesh(new THREE.PlaneGeometry(w,w*(o.h||400)/(o.w||2048)),new THREE.MeshBasicMaterial({map:tex,transparent:true,toneMapped:false,depthWrite:false}));
+  m.material.userData.own=true;m.position.set(x,y,z);if(rotY)m.rotation.y=rotY;m.userData.keep=true;p.add(m);return m;}
+
+/* =================== WORLD =================== */
+const FH=3.4;
+const campusG=new THREE.Group();scene.add(campusG);
+const worldG=new THREE.Group();campusG.add(worldG);
+const SLOTX=[0,42,-42,84,-84,126,-126,168];
+let seedR=7;const rnd=()=>{seedR=(seedR*16807)%2147483647;return (seedR-1)/2147483646;};
+const LEAF=new THREE.IcosahedronGeometry(1,1);cachedGeos.add(LEAF);
+function leaf(p,r,c,x,y,z){const m=new THREE.Mesh(LEAF,mat(c,{roughness:.9}));m.scale.setScalar(r);return put(m,x,y,z,p);}
+function tree(p,x,z,s){
+  cyl(p,0.12*s,0.18*s,1.2*s,'#7a5a3f',x,0.6*s,z);
+  const c=['#6fae5a','#5f9e4f','#84bd66','#4f8f48'][Math.floor(rnd()*4)];
+  leaf(p,0.95*s,c,x,1.75*s,z);leaf(p,0.7*s,c,x+0.45*s,2.25*s,z-0.2*s);leaf(p,0.6*s,c,x-0.4*s,2.15*s,z+0.3*s);
+}
+function bigPlant(g,x,z,s){cyl(g,0.26*s,0.2*s,0.5*s,'#f4f4f1',x,0.25*s,z);cyl(g,0.03*s,0.04*s,1.4*s,'#6b4a32',x,1.1*s,z);
+  for(let i=0;i<7;i++){const a=i/7*Math.PI*2;const m=new THREE.Mesh(LEAF,mat(i%2?'#4f8f48':'#6fae5a',{roughness:.9}));m.scale.set(0.13*s,0.07*s,0.5*s);m.rotation.set(-0.5,a,0);put(m,x+Math.sin(a)*0.35*s,1.75*s+(i%3)*0.12*s,z+Math.cos(a)*0.35*s,g);}}
+const clouds=[],cars=[];
+function car(c){const g=new THREE.Group();rbox(g,3.6,0.7,1.7,0.25,c,0,0.65,0,{roughness:.3,metalness:.3});rbox(g,2,0.6,1.5,0.22,'#1c2329',-0.2,1.2,0,{roughness:.15,metalness:.4});
+  [[-1.2,-0.82],[1.2,-0.82],[-1.2,0.82],[1.2,0.82]].forEach(([x,z])=>{const w=cyl(g,0.34,0.34,0.25,'#1c2329',x,0.34,z);w.rotation.x=Math.PI/2;});
+  [0.55,-0.55].forEach(z=>sphere(g,0.1,'#fff6dd',1.8,0.75,z,{emissive:'#fff2c0',emissiveIntensity:1}));mergeLocal(g);return g;}
+function buildWorld(){
+  seedR=7;disposeGroup(worldG);clouds.length=0;cars.length=0;
+  const st=new THREE.Group();worldG.add(st);
+  const W=400,D=160,cz=12;
+  const top=new THREE.Mesh(uvs(new THREE.RoundedBoxGeometry(W,1.2,D,4,0.6),W/10,D/10),new THREE.MeshStandardMaterial({map:TX.grass(),roughness:.95}));put(top,0,-0.6,cz,st,false);
+  rbox(st,W-1,5,D-1,0.6,'#a8805f',0,-3.4,cz,{noCast:true,roughness:1});rbox(st,W-3,3,D-3,0.8,'#8a8178',0,-6.8,cz,{noCast:true,roughness:1});
+  box(st,W,0.12,9,'#4b5159',0,0.06,37,{noCast:true,roughness:.85});
+  for(let x=-W/2+2;x<W/2;x+=5)box(st,2.4,0.02,0.22,'#f2efe6',x,0.13,37,{noCast:true});
+  [31.8,42.2].forEach(z=>tbox(st,W,0.2,2.4,texMat('paving','#d9d4c8'),0,0.1,z,2));
+  for(let x=-W/2+10;x<W/2;x+=14)[30.9,43.1].forEach(z=>{cyl(st,0.07,0.09,4,'#2a2f35',x,2,z);sphere(st,0.26,'#fff6dd',x,4.1,z,{emissive:'#ffe7b0',emissiveIntensity:.8});});
+  const pond=(x,z,sx,r)=>{const p=new THREE.Mesh(new THREE.CylinderGeometry(r,r,0.12,56),mat('#5aa9cf',{roughness:.06,metalness:.3}));p.scale.set(sx,1,1);put(p,x,0.04,z,st,false);
+    const rim=new THREE.Mesh(new THREE.CylinderGeometry(r+0.6,r+0.6,0.1,56),mat('#d9d1c0'));rim.scale.set(sx,1,1);put(rim,x,0.02,z,st,false);};
+  pond(-70,64,1.8,10);pond(95,62,1.4,8);
+  for(let i=0;i<150;i++){const x=-W/2+6+rnd()*(W-12),z=48+rnd()*(D/2+cz-52);if(Math.hypot((x+70)/1.8,z-64)<12.5||Math.hypot((x-95)/1.4,z-62)<10.5)continue;tree(st,x,z,0.9+rnd()*0.8);}
+  for(let i=0;i<130;i++){const x=-W/2+6+rnd()*(W-12),z=-22-rnd()*42;tree(st,x,z,1+rnd());}
+  for(let i=0;i<14;i++){const m=new THREE.Mesh(LEAF,mat('#86bb70',{roughness:1}));const s=8+rnd()*10;m.scale.set(s*1.6,s*0.45,s);put(m,-W/2+rnd()*W,-1,-52-rnd()*12,st,false);}
+  for(let i=0;i<220;i++){const x=-W/2+5+rnd()*(W-10),z=48+rnd()*34;leaf(st,0.18,pick(['#f2a7b5','#f7d26b','#ffffff','#c9a0e8','#ff8f6b']),x,0.14,z).castShadow=false;}
+  mergeStatic(st);
+  const cc=['#c2453b','#f4f4f1','#2b55c9','#1c2329','#e39a2d','#2f8f5b'];
+  for(let i=0;i<6;i++){const c=car(cc[i]);const dir=i%2?-1:1;c.position.set(-W/2+rnd()*W,0.1,dir>0?35:39);c.rotation.y=dir>0?0:Math.PI;c.userData={v:(6+rnd()*5)*dir,lim:W/2-4};worldG.add(c);cars.push(c);}
+  for(let i=0;i<10;i++){const c=new THREE.Group();const n=3+Math.floor(rnd()*3);for(let k=0;k<n;k++){const s=new THREE.Mesh(LEAF,mat('#ffffff',{roughness:1,emissive:'#ffffff',emissiveIntensity:.25}));const cs=3+rnd()*2.5;s.scale.set(cs,cs*0.65,cs);s.position.set(k*4-n*2,rnd()*1.5,rnd()*2);c.add(s);}
+    c.position.set(-W/2+rnd()*W,44+rnd()*12,-50+rnd()*90);c.userData.v=0.8+rnd();worldG.add(c);clouds.push(c);}
+}
+
+/* =================== FLOORS (layout & spots) =================== */
+const FL={};let deskById={};
+const ELEV=V(-11.6,-0.9);
+function fkey(b,i){return b.id+'-f'+i;}
+function layoutFloor(F){
+  const S2={desks:[],rooms:[],lounge:[],boss:[]};
+  const sp=o=>{o.floor=F.key;if(!('owner' in o))o.occ=null;return o;};
+  const t=F.type;
+  if(t==='work'||t==='studio'){
+    const cols=[-7.6,-4.2,-0.8,2.6,6.0,9.4];
+    const rows=t==='studio'?[-3.8,-7.2]:[3.0,6.4,-3.8,-7.2];
+    let n=0;rows.forEach(zd=>cols.forEach(x=>{const ax=x+1.7,cz=zd+0.85;n++;
+      const visit=sp({pos:V(x+1.08,cz-0.05),face:-Math.PI/2,sit:false,approach:[V(ax,0),V(ax,cz)]});
+      S2.desks.push(sp({id:`${F.key}-d${n}`,n,pos:V(x,cz),face:Math.PI,sit:true,approach:[V(ax,0),V(ax,cz),V(x+0.55,cz)],owner:null,visit,dx:x,dz:zd,dual:t==='studio'}));}));
+  }
+  if(t==='meeting'){
+    [-4,7].forEach(dx=>{const x1=dx-5,seats=[];
+      seats.push(sp({pos:V(dx-4,-5.5),face:Math.PI/2,sit:true,head:true,approach:[V(dx,0),V(dx,-1.6),V(x1+0.55,-3),V(x1+0.55,-5.5)]}));
+      [-2.4,-0.8,0.8,2.4].forEach(o=>seats.push(sp({pos:V(dx+o,-4.1),face:Math.PI,sit:true,approach:[V(dx,0),V(dx,-1.6),V(dx+o,-3)]})));
+      [-2.4,-0.8,0.8,2.4].forEach(o=>seats.push(sp({pos:V(dx+o,-6.9),face:0,sit:true,approach:[V(dx,0),V(dx,-1.6),V(x1+0.55,-3),V(x1+0.55,-8.2),V(dx+o,-8.2)]})));
+      S2.rooms.push(seats);});
+    [-5.3,-4,-2.7].forEach(x=>S2.lounge.push(sp({pos:V(x,7.1),face:Math.PI,sit:true,approach:[V(-7.2,0),V(-7.2,6.3),V(x,6.3)],what:'在讨论区休息'})));
+    [[5.2,Math.PI/2],[6.8,-Math.PI/2]].forEach(([x,f])=>S2.lounge.push(sp({pos:V(x,5),face:f,sit:false,approach:[V(x,0),V(x,3.6)],what:'站着讨论'})));
+  }
+  if(t==='cafe'){
+    [-6,-4,-2,0,2].forEach(x=>S2.lounge.push(sp({pos:V(x,-6.5),face:Math.PI,sit:false,bar:true,approach:[V(x,0),V(x,-2.5)],what:'点咖啡'})));
+    [-6,-1.5,3,7.5].forEach(cx=>[[cx-0.9,Math.PI/2],[cx+0.9,-Math.PI/2]].forEach(([x,f])=>S2.lounge.push(sp({pos:V(x,4.5),face:f,sit:true,approach:[V(x,0),V(x,3.4)],what:'喝咖啡聊天'}))));
+    [7.2,8.5,9.8].forEach(x=>S2.lounge.push(sp({pos:V(x,-7.25),face:0,sit:true,approach:[V(6,0),V(6,-6.4),V(x,-6.4)],what:'在沙发上休息'})));
+  }
+  if(t==='lobby'){
+    [-6,5].forEach(cx=>[-1.3,0,1.3].forEach(o=>S2.lounge.push(sp({pos:V(cx+o,7.0),face:Math.PI,sit:true,approach:[V(cx-2.4,0),V(cx-2.4,5.9),V(cx+o,5.9)],what:'在大堂休息'}))));
+  }
+  if(t==='exec'){
+    [[-1.4,-4.6],[0,-4.6],[1.4,-4.6],[-1.4,-3.4],[0,-3.4],[1.4,-3.4]].forEach(([x,z])=>S2.boss.push(sp({pos:V(x,z),face:Math.PI,sit:false,approach:[V(0,0),V(0,-2.6),V(x,-2.7)]})));
+    [-7.5,0,7.5].forEach((dx,i)=>S2.desks.push(sp({id:`${F.key}-d${i+1}`,n:i+1,pos:V(dx,6.45),face:Math.PI,sit:true,approach:[V(dx,0),V(dx,2.7),V(dx+1.5,3.6),V(dx+1.5,6.45),V(dx+0.55,6.45)],owner:null,exec:true,dx,dz:5.6,
+      visit:sp({pos:V(dx,3.6),face:0,sit:false,approach:[V(dx,0),V(dx,2.7)]})})));
+    [6.7,8,9.3].forEach(x=>S2.lounge.push(sp({pos:V(x,-7.25),face:0,sit:true,approach:[V(5.4,0),V(5.4,-6.4),V(x,-6.4)],what:'在茶台喝茶'})));
+  }
+  F.spots=S2;
+}
+function rebuildFloors(){
+  for(const k in FL)delete FL[k];deskById={};
+  S.buildings.forEach(b=>b.floors.forEach((fd,i)=>{const F={key:fkey(b,i),b,idx:i,type:fd.type,name:fd.name,dept:fd.dept||''};layoutFloor(F);FL[F.key]=F;F.spots.desks.forEach(d=>deskById[d.id]=d);}));
+}
+const floorsOf=b=>b.floors.map((_,i)=>FL[fkey(b,i)]);
+const allFloors=()=>S.buildings.flatMap(floorsOf);
+
+/* =================== FURNITURE =================== */
+let deciLamps=[];
+const screenM=new THREE.MeshStandardMaterial({color:'#0f1620',emissive:'#7aa6ff',emissiveIntensity:.55,roughness:.2});
+function gwall(g,x1,z1,x2,z2,frame){const hz=Math.abs(z2-z1)<0.01,len=Math.hypot(x2-x1,z2-z1),cx=(x1+x2)/2,cz=(z1+z2)/2;
+  const w=new THREE.Mesh(bgeo(hz?len:0.05,2.4,hz?0.05:len),winGlass('#d2e6ee'));w.position.set(cx,1.2,cz);w.userData.noPick=true;g.add(w);
+  box(g,hz?len:0.08,0.07,hz?0.08:len,frame,cx,2.42,cz,{noCast:true});box(g,hz?len:0.08,0.07,hz?0.08:len,frame,cx,0.04,cz,{noCast:true});
+  for(let k=0;k<=Math.round(len/2.4);k++){const f=k/Math.max(1,Math.round(len/2.4));box(g,0.06,2.4,0.06,frame,hz?x1+(x2-x1)*f:cx,1.2,hz?cz:z1+(z2-z1)*f,{noCast:true});}}
+function chairOffice(g,x,z,rot,c){const ch=new THREE.Group();ch.position.set(x,0,z);ch.rotation.y=rot;g.add(ch);c=c||'#3a4450';
+  rbox(ch,0.52,0.1,0.5,0.05,c,0,0.46,0);rbox(ch,0.5,0.55,0.08,0.04,c,0,0.78,0.24);cyl(ch,0.035,0.035,0.38,'#9aa3ab',0,0.24,0,{metalness:.6,roughness:.3});
+  for(let i=0;i<5;i++){const a=i/5*Math.PI*2;const l=box(ch,0.04,0.03,0.3,'#5b646d',Math.sin(a)*0.15,0.04,Math.cos(a)*0.15);l.rotation.y=a;}}
+function lampPend(g,x,z,c){cyl(g,0.008,0.008,0.75,'#2a2f35',x,2.72,z);const sh2=new THREE.Mesh(geo('lampc',()=>new THREE.ConeGeometry(0.24,0.26,24,1,true)),new THREE.MeshStandardMaterial({color:c,roughness:.4,side:THREE.DoubleSide}));put(sh2,x,2.24,z,g,false);sphere(g,0.07,'#fff3d6',x,2.16,z,{emissive:'#ffe3b0',emissiveIntensity:1.6});}
+function deskSet(g,d,A,chairC){
+  const x=d.dx,zd=d.dz,ex=d.exec;
+  rbox(g,ex?2:1.5,0.06,ex?0.9:0.75,0.025,ex?'#6b4a32':'#d9b088',x,0.74,zd,{roughness:.55});
+  if(ex)[-0.92,0.92].forEach(o=>rbox(g,0.06,0.72,0.82,0.02,'#4a3324',x+o,0.36,zd));
+  else{[[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([a,b])=>box(g,0.05,0.72,0.05,'#2a2f35',x+a*0.68,0.36,zd+b*0.31));rbox(g,1.5,0.44,0.04,0.02,A,x,0.98,zd-0.39,{roughness:.9});}
+  (d.dual?[-0.33,0.33]:[0]).forEach(o=>{rbox(g,0.62,0.38,0.035,0.02,'#1c2329',x+o,1.06,zd-0.22);const s=new THREE.Mesh(bgeo(0.56,0.32,0.005),screenM);put(s,x+o,1.06,zd-0.2,g,false);});
+  cyl(g,0.02,0.02,0.2,'#2a2f35',x,0.86,zd-0.23);rbox(g,0.42,0.02,0.14,0.008,'#e9ecee',x,0.785,zd+0.1);
+  if(d.n%3===0)cyl(g,0.04,0.035,0.1,'#f4f4f1',x+0.55,0.82,zd+0.15);
+  if(d.n%4===1){cyl(g,0.07,0.06,0.12,'#e2d6c2',x-0.6,0.83,zd-0.15);leaf(g,0.1,'#5f9e4f',x-0.6,0.96,zd-0.15);}
+  chairOffice(g,x,zd+0.85,0,chairC);
+  lampPend(g,x,zd,'#1c2329');
+}
+function plant(g,x,z,s){rbox(g,0.5*s,0.5*s,0.5*s,0.08,'#e8e4dc',x,0.25*s,z);leaf(g,0.38*s,'#5f9e4f',x,0.85*s,z);leaf(g,0.28*s,'#6fae5a',x+0.15*s,1.2*s,z-0.08*s);}
+function sofa(g,x,z,rot,len,c){const s=new THREE.Group();s.position.set(x,0,z);s.rotation.y=rot;g.add(s);const n=Math.max(1,Math.round(len/1.3));
+  rbox(s,len,0.32,0.82,0.12,c,0,0.26,0,{roughness:.85});rbox(s,len,0.55,0.22,0.1,c,0,0.6,-0.32,{roughness:.85});
+  [-1,1].forEach(k=>rbox(s,0.22,0.48,0.82,0.1,c,k*(len/2-0.05),0.38,0,{roughness:.85}));
+  for(let i=0;i<n;i++)rbox(s,len/n-0.08,0.12,0.6,0.06,sh(c,.12),-len/2+(i+0.5)*len/n,0.45,0.05,{roughness:.9});
+  [-1,1].forEach(k=>rbox(s,0.42,0.38,0.12,0.06,sh(c,.35),k*(len/2-0.45),0.66,-0.18,{roughness:.9}));}
+function rug(g,x1,z1,x2,z2,c){rbox(g,x2-x1,0.02,z2-z1,0.01,c,(x1+x2)/2,0.012,(z1+z2)/2,{roughness:1,noCast:true});}
+function books(g,x,y,z,len,axis){let o=-len/2+0.05;while(o<len/2-0.08){const w=0.05+rnd()*0.06,h=0.24+rnd()*0.12;const c=pick(['#c2453b','#2b55c9','#e39a2d','#f4f4f1','#2f8f5b','#6b4fd8','#1c2329','#e7b9c4']);
+  axis==='x'?box(g,w,h,0.2,c,x+o,y+h/2,z,{noCast:true}):box(g,0.2,h,w,c,x,y+h/2,z+o,{noCast:true});o+=w+0.01;}}
+function shelfNorth(g,x){rbox(g,1.9,2.2,0.42,0.03,'#e9e4da',x,1.1,-8.72);for(let k=0;k<4;k++){box(g,1.82,0.03,0.38,'#c9b89f',x,0.3+k*0.52,-8.7,{noCast:true});if(k<3)books(g,x,0.32+k*0.52,-8.68,1.7,'x');}}
+function credenzaTV(g,z,A){rbox(g,0.5,0.8,3.2,0.04,'#e9e4da',-12.63,0.4,z);[-1,0,1].forEach(k=>box(g,0.02,0.6,0.98,A,-12.37,0.42,z+k*1.04,{noCast:true}));rbox(g,0.52,0.05,3.25,0.02,'#b98d63',-12.63,0.82,z);
+  rbox(g,0.06,1.0,1.8,0.02,'#111418',-12.86,1.95,z);const s=new THREE.Mesh(bgeo(0.01,0.9,1.7),mat('#18202a',{emissive:'#3b6fd8',emissiveIntensity:.35}));put(s,-12.82,1.95,z,g,false);
+  plant(g,-12.63,z+1.25,0.55);books(g,-12.63,0.85,z-0.7,1,'z');}
+function frameArt(g,z,c1,c2){rbox(g,0.05,0.9,1.3,0.02,'#2a2f35',-12.92,1.9,z);box(g,0.02,0.75,1.15,c1,-12.89,1.9,z,{noCast:true});sphere(g,0.18,c2,-12.88,1.95,z-0.15).scale.set(0.1,1,1);}
+
+function winWall(p,axis,len,pos,wins,thick,m,frameM,glassM){
+  const H=FH-0.3,sill=0.75,head=2.78;
+  const seg=(a,b,y0,y1)=>{if(b-a<0.01)return;const c=(a+b)/2,l=b-a,h=y1-y0;axis==='x'?tbox(p,l,h,thick,m,c,y0+h/2,pos,1.6):tbox(p,thick,h,l,m,pos,y0+h/2,c,1.6);};
+  seg(-len/2,len/2,0,sill);seg(-len/2,len/2,head,H);
+  let cur=-len/2;wins.slice().sort((a,b)=>a[0]-b[0]).forEach(([c,w])=>{seg(cur,c-w/2,sill,head);cur=c+w/2;
+    if(!glassM)return;
+    const gl=new THREE.Mesh(axis==='x'?bgeo(w,head-sill,0.04):bgeo(0.04,head-sill,w),glassM);gl.position.set(axis==='x'?c:pos,(sill+head)/2,axis==='x'?pos:c);gl.userData.noPick=true;p.add(gl);
+    const fr=(cx,cy,sx,sy)=>{const o=axis==='x'?box(p,sx,sy,thick+0.04,null,cx,cy,pos,{m:frameM}):box(p,thick+0.04,sy,sx,null,pos,cy,cx,{m:frameM});o.castShadow=false;};
+    fr(c,sill+0.03,w,0.06);fr(c,head-0.03,w,0.06);fr(c-w/2+0.03,(sill+head)/2,0.06,head-sill);fr(c+w/2-0.03,(sill+head)/2,0.06,head-sill);fr(c,(sill+head)/2,0.05,head-sill);fr(c,sill+(head-sill)*0.7,w,0.05);});
+  seg(cur,len/2,sill,head);
+}
+function glassRun(g,axis,a,b,pos,h,frameM){const len=b-a,c=(a+b)/2;const gl=new THREE.Mesh(axis==='x'?bgeo(len,h,0.04):bgeo(0.04,h,len),winGlass('#d6e7ee'));gl.position.set(axis==='x'?c:pos,h/2,axis==='x'?pos:c);gl.userData.noPick=true;g.add(gl);
+  const fb=(cx,cy,l,hh)=>{const o=axis==='x'?box(g,l,hh,0.08,null,cx,cy,pos,{m:frameM}):box(g,0.08,hh,l,null,pos,cy,cx,{m:frameM});o.castShadow=false;};
+  fb(c,h-0.03,len,0.07);fb(c,0.03,len,0.06);const n=Math.max(1,Math.round(len/2.4));for(let k=0;k<=n;k++)fb(a+len*k/n,h/2,0.06,h);}
+
+const WOODS=['#c99d6e','#b5835a','#d8b48a','#a8754e'];
+function paletteFor(b,F){const pal=PALETTES[b.palette]?PALETTES[b.palette].c:PALETTES.vivid.c;const s=(b.slot||0)*3+F.idx;return [pal[s%pal.length],pal[(s+2)%pal.length],pal[(s+4)%pal.length]];}
+function buildFloorInto(g,F,b){
+  const st=STYLES[b.style],[A,B,C]=paletteFor(b,F),t=F.type;
+  rbox(g,26.6,0.3,18.6,0.04,st.slab,0,-0.15,0,{noCast:true});
+  const fm=t==='work'?texMat('wood',WOODS[F.idx%WOODS.length]):t==='lobby'?texMat('marble','#ecebe7'):t==='studio'?texMat('concrete','#4a4f57'):t==='meeting'?texMat('carpet',sh(A,.5)):t==='cafe'?texMat('wood','#b07a4f'):texMat('wood','#5b3d2a');
+  tplane(g,-13,-9,13,9,fm,0.004,t==='lobby'||t==='meeting'?2:4);
+  const outer=st.wallKind==='brick'?texMat('brick',st.wall):st.wallKind==='marble'?texMat('marble',st.wall):st.wallKind==='slats'?texMat('slats',st.wall):mat(st.wall,{roughness:.8});
+  const frameM=mat(st.frame,{roughness:.4,metalness:.4}),glassM=winGlass(st.glass);
+  const nW=t==='lobby'?[]:[[-8.2,3.4],[-2.6,3.4],[3,3.4],[8.6,3.4]],wW=[[-7,2.6],[6.4,2.6]];
+  winWall(g,'x',26.6,-9.15,nW,0.3,outer,frameM,glassM);
+  winWall(g,'z',18.6,-13.15,wW,0.3,outer,frameM,glassM);
+  if(st.inner)winWall(g,'x',26,-8.97,nW,0.06,mat(st.inner,{roughness:.9}),null,null);
+  winWall(g,'z',18,-12.97,wW,0.06,mat(st.innerSide||sh(A,.62),{roughness:.9}),null,null);
+  box(g,26.8,0.44,0.22,st.trim,0,-0.1,9.31,{noCast:true});box(g,0.22,0.44,18.8,st.trim,13.31,-0.1,0,{noCast:true});
+  textPlane(g,`${F.idx+1}F · ${F.name}`,4.6,{fg:st.trimText,w:1024,h:150,size:96},-9.5,-0.1,9.43);
+  box(g,0.42,FH-0.3,0.42,st.trim,13.2,(FH-0.3)/2,9.2,{noCast:true});
+  if(t==='lobby'){
+    glassRun(g,'x',-13,-1.6,9.15,FH-0.3,frameM);glassRun(g,'x',1.6,13,9.15,FH-0.3,frameM);box(g,3.2,0.3,0.2,null,0,FH-0.45,9.15,{m:frameM,noCast:true});
+    [-0.8,0.8].forEach(x=>{const d=new THREE.Mesh(bgeo(1.4,2.6,0.04),winGlass('#cfe3ea'));d.position.set(x,1.3,9.05);d.userData.noPick=true;g.add(d);box(g,0.04,0.6,0.04,'#c8d0d5',x*0.25,1.2,9.1,{noCast:true});});
+    glassRun(g,'z',-9,9,13.15,FH-0.3,frameM);
+    rbox(g,9,0.24,3.4,0.06,st.trim,0,FH-0.62,10.9);[-4,4].forEach(x=>cyl(g,0.08,0.08,FH-0.1,st.trim,x,(FH-0.1)/2-0.6,12.3));
+    textPlane(g,b.name,4.4,{fg:st.trimText,w:1024,h:160,size:110},0,FH-0.62,12.63);
+  }else{glassRun(g,'x',-13,13,9.16,1.05,frameM);glassRun(g,'z',-9,9,13.16,1.05,frameM);}
+  const lm=mat('#ffffff',{emissive:'#fff7e8',emissiveIntensity:1});
+  [-6.5,-0.5,5.5,11].forEach(x=>[-5,4.5].forEach(z=>box(g,1.9,0.04,0.5,null,x,FH-0.33,z,{m:lm,noCast:true})));
+  tbox(g,2.6,FH-0.3,2.6,texMat('marble',st.stone),-11.6,(FH-0.3)/2,-3.4,2);
+  [-11.9,-11.3].forEach(x=>box(g,0.58,2.2,0.04,'#c8d0d5',x,1.1,-2.08,{metalness:.7,roughness:.25,noCast:true}));
+  textPlane(g,`${F.idx+1}F`,0.8,{fg:'#8af5b0',bg:'#11161b',w:256,h:128,size:90},-11.6,2.55,-2.07);
+  bigPlant(g,12.2,8.1,1.1);bigPlant(g,-12.2,8.2,1);
+  if(t==='work'||t==='studio'){
+    F.spots.desks.forEach(d=>deskSet(g,d,d.n%2?A:B,d.n%3===0?'#f4f4f1':d.n%3===1?'#3a4450':sh(C,-.1)));
+    if(t==='work'){[-5.4,0.2,5.8].forEach(x=>shelfNorth(g,x));credenzaTV(g,2.6,A);
+      rbox(g,0.7,1,0.6,0.06,'#e9ecee',12.3,0.5,-4.5);rbox(g,0.6,0.08,0.5,0.03,'#2a2f35',12.3,1.04,-4.5);bigPlant(g,12.2,-8.2,1.2);}
+    else{tplane(g,-4,4.4,8,8.95,mat('#3bb273',{roughness:.9}),0.012,4);rbox(g,12,3,0.2,0.05,'#3bb273',2,1.5,8.9,{roughness:.9});
+      box(g,0.1,1.3,0.1,'#1c2329',2,0.65,2.6);rbox(g,0.5,0.32,0.3,0.06,'#1c2329',2,1.4,2.6);const lens=cyl(g,0.08,0.08,0.18,'#2a2f35',2,1.4,2.82);lens.rotation.x=Math.PI/2;
+      [[-2.5,5],[6.5,5]].forEach(([x,z])=>{cyl(g,0.03,0.03,2,'#2a2f35',x,1,z);rbox(g,0.8,0.8,0.25,0.05,'#f6f6f3',x,2.1,z,{emissive:'#ffffff',emissiveIntensity:.5});});
+      rbox(g,3.5,0.06,0.8,0.02,'#1c2329',-8,0.74,6);rbox(g,1.2,0.7,0.05,0.02,'#1c2329',-8,1.2,5.7);credenzaTV(g,2.6,A);}
+  }
+  if(t==='meeting'){
+    [-4,7].forEach((dx,ri2)=>{const x1=dx-5,x2=dx+5;gwall(g,x1,-2,dx-0.9,-2,st.frame);gwall(g,dx+0.9,-2,x2,-2,st.frame);if(x1>-12.9)gwall(g,x1,-9,x1,-2,st.frame);gwall(g,x2,-9,x2,-2,st.frame);
+      rbox(g,6.6,0.08,1.75,0.04,'#c79c6e',dx,0.74,-5.5,{roughness:.5});[-2.8,2.8].forEach(o=>cyl(g,0.06,0.12,0.72,'#4a525a',dx+o,0.36,-5.5));
+      F.spots.rooms[ri2].forEach(s=>chairOffice(g,s.pos.x,s.pos.z,s.face+Math.PI,ri2?B:C));
+      rug(g,x1+0.4,-8.8,x2-0.4,-2.4,sh(ri2?A:B,.55));
+      [-2,0,2].forEach(o=>lampPend(g,dx+o,-5.5,'#f4f4f1'));});
+    sofa(g,-4,7.6,Math.PI,4,B);rbox(g,1.6,0.35,0.7,0.1,'#e7e3dc',-4,0.2,5.5);rug(g,-7,4.6,-1,8.6,sh(C,.5));
+    cyl(g,0.4,0.4,0.04,'#c79c6e',6,1.05,5);cyl(g,0.05,0.05,1.02,'#4a525a',6,0.52,5);credenzaTV(g,4,A);
+  }
+  if(t==='cafe'){
+    rbox(g,10.5,1.05,0.9,0.08,A,-2,0.52,-7.9);rbox(g,10.7,0.06,1.0,0.03,'#e8e2d4',-2,1.07,-7.9);
+    [-5,-3.6].forEach(x=>rbox(g,0.5,0.6,0.45,0.06,'#9aa3ab',x,1.4,-8.1,{metalness:.6,roughness:.3}));
+    for(let i=0;i<6;i++)cyl(g,0.05,0.04,0.1,['#f4f4f1','#e39a2d','#c2453b'][i%3],-1+i*0.4,1.15,-7.8);
+    [-6,-4,-2,0,2].forEach(x=>{cyl(g,0.2,0.2,0.06,B,x,0.74,-6.9);cyl(g,0.03,0.03,0.72,'#9aa3ab',x,0.36,-6.9);lampPend(g,x,-7.6,B);});
+    [-6,-1.5,3,7.5].forEach(cx=>{cyl(g,0.55,0.55,0.04,'#f4f4f1',cx,0.74,4.5);cyl(g,0.05,0.2,0.72,'#2a2f35',cx,0.36,4.5);
+      [-0.9,0.9].forEach(o=>{rbox(g,0.45,0.08,0.45,0.04,C,cx+o,0.46,4.5);rbox(g,0.08,0.4,0.42,0.04,C,cx+o*1.27,0.68,4.5);});lampPend(g,cx,4.5,A);});
+    sofa(g,8.5,-7.6,0,4,C);rbox(g,1.8,0.35,0.7,0.1,'#e8e2d4',8.5,0.2,-5.6);rug(g,-8,2.6,10,6.6,sh(B,.45));frameArt(g,2.5,sh(A,.4),B);bigPlant(g,12.2,-8.2,1.2);
+  }
+  if(t==='lobby'){
+    tbox(g,11,3,0.3,texMat('slats',st.wallKind==='slats'?st.wall:'#b98d63'),0,1.6,-8.75,1.6);
+    signPlane(g,b,{fg:st.wallKind==='slats'?st.sign:'#ffffff',glow:true},9.6,0,2,-8.58);
+    rbox(g,5.4,1.05,1.1,0.25,'#f4f2ee',0,0.52,-5.5);rbox(g,5.6,0.08,1.25,0.04,'#1c2329',0,1.09,-5.5);box(g,5.2,0.08,0.02,st.accent,0,0.85,-4.94,{emissive:st.accent,emissiveIntensity:.8,noCast:true});
+    [-6,5].forEach(cx=>{sofa(g,cx,7.55,Math.PI,4,B);rbox(g,1.6,0.35,0.7,0.1,'#f4f4f1',cx,0.2,5);rug(g,cx-2.6,4,cx+2.6,8.4,sh(A,.5));});
+    bigPlant(g,-4.4,-6.8,1.5);bigPlant(g,4.4,-6.8,1.5);
+    [6.8,8,9.2].forEach(x=>rbox(g,0.18,1,0.6,0.05,'#c8d0d5',x,0.5,-3.2,{metalness:.6,roughness:.3}));
+    [-4,0,4].forEach(x=>{cyl(g,0.01,0.01,0.6,'#2a2f35',x,2.8,-1);sphere(g,0.32,'#fff6e2',x,2.4,-1,{emissive:'#ffe7b8',emissiveIntensity:.9});});
+    credenzaTV(g,2.6,A);
+  }
+  if(t==='exec'){
+    gwall(g,-4,-2,-0.9,-2,st.frame);gwall(g,0.9,-2,4,-2,st.frame);gwall(g,-4,-9,-4,-2,st.frame);gwall(g,4,-9,4,-2,st.frame);
+    rug(g,-3.6,-8.8,3.6,-2.4,'#4a3a2e');
+    rbox(g,2.8,0.08,1.2,0.04,'#3a2a20',0,0.76,-7.4,{roughness:.4});rbox(g,2.6,0.72,0.08,0.03,'#3a2a20',0,0.38,-7.95);
+    const ch=new THREE.Group();ch.position.set(0,0,-8.3);g.add(ch);rbox(ch,0.7,0.12,0.65,0.06,'#6b4a32',0,0.52,0);rbox(ch,0.72,1.0,0.12,0.06,'#6b4a32',0,1.05,-0.28);cyl(ch,0.05,0.05,0.45,'#9aa3ab',0,0.26,0);
+    const dm=new THREE.MeshStandardMaterial({color:'#e39a2d',emissive:'#ffb54a',emissiveIntensity:.2});deciLamps.push(dm);
+    const lampM=new THREE.Mesh(sphG(0.15),dm);lampM.userData.keep=true;put(lampM,0.95,0.98,-7.5,g,false);
+    textPlane(g,'Dave · 决策室',2.4,{fg:'#e39a2d',bg:'#11161b',size:100},0,1.9,-8.9);
+    [-7.5,0,7.5].forEach((dx,i)=>{const x1=dx-3,x2=dx+3;gwall(g,x1,2,dx-0.9,2,st.frame);gwall(g,dx+0.9,2,x2,2,st.frame);gwall(g,x1,2,x1,9,st.frame);gwall(g,x2,2,x2,9,st.frame);rug(g,x1+0.3,2.4,x2-0.3,8.7,sh([A,B,C][i],.35));});
+    F.spots.desks.forEach(d=>deskSet(g,d,A,'#6b4a32'));
+    [-9,-7.5,-6].forEach(x=>{rbox(g,1.3,2.2,0.4,0.04,'#6b4a32',x,1.1,-8.7);for(let k=0;k<3;k++)books(g,x,0.4+k*0.6,-8.66,1.15,'x');});
+    sofa(g,8,-7.6,0,4,C);rbox(g,1.8,0.35,0.7,0.1,'#3a2a20',8,0.2,-5.6);
+  }
+}
+function buildRoof(g,b){
+  const st=STYLES[b.style],[A,B]=paletteFor(b,{idx:7});
+  rbox(g,26.8,0.4,18.8,0.06,st.slab,0,-0.1,0,{noCast:true});
+  box(g,26.8,0.9,0.3,st.trim,0,0.45,9.25,{noCast:true});box(g,26.8,0.9,0.3,st.trim,0,0.45,-9.25,{noCast:true});
+  box(g,0.3,0.9,18.8,st.trim,13.25,0.45,0,{noCast:true});box(g,0.3,0.9,18.8,st.trim,-13.25,0.45,0,{noCast:true});
+  tplane(g,-12.6,-8.6,2,4.5,texMat('wood','#a8754e'),0.11,3);
+  rbox(g,9.5,0.45,9,0.15,'#7fb069',7.5,0.3,-4,{roughness:.95});tree(g,5,-6,0.55);tree(g,10,-2,0.5);tree(g,9.5,-7,0.45);
+  for(let i=0;i<12;i++)leaf(g,0.2,pick([A,B,'#f2a7b5','#ffffff']),3.6+(i%6)*1.6,0.6,0.2+(i<6?0:0.5)).castShadow=false;
+  [-9,-6.5].forEach(x=>{rbox(g,0.8,0.25,1.9,0.1,'#f4f4f1',x,0.35,0.8);rbox(g,0.8,0.5,0.25,0.08,'#f4f4f1',x,0.55,-0.1);});
+  cyl(g,0.04,0.04,2.2,'#2a2f35',-7.7,1.2,-1.5);const um=new THREE.Mesh(geo('umb',()=>new THREE.ConeGeometry(1.6,0.6,24,1,true)),new THREE.MeshStandardMaterial({color:A,side:THREE.DoubleSide,roughness:.8}));put(um,-7.7,2.4,-1.5,g,true);
+  [[-10.5,-6.5],[-8,-6.5]].forEach(([x,z])=>{rbox(g,1.8,1.1,1.4,0.1,'#b9c0c6',x,0.65,z,{metalness:.4,roughness:.5});cyl(g,0.45,0.45,0.06,'#6b747c',x,1.22,z);});
+  if(b.style==='loft'){const tx=-4,tz=-6.5;[[-.5,-.5],[.5,-.5],[-.5,.5],[.5,.5]].forEach(([a,c])=>cyl(g,0.05,0.05,1.6,'#2a2522',tx+a,1,tz+c));cyl(g,1,1,1.5,'#8a5a3a',tx,2.5,tz);cyl(g,0.1,1.1,0.7,'#2a2522',tx,3.6,tz);}
+  if(b.style==='future'){const ring=new THREE.Mesh(new THREE.TorusGeometry(1.8,0.09,12,48),mat(st.accent,{emissive:st.accent,emissiveIntensity:1.4}));ring.rotation.x=Math.PI/2;ring.userData.keep=true;ring.userData.spin=1;put(ring,-3.5,2.2,-5.5,g,false);cyl(g,0.04,0.06,4,'#c3ccd3',-1,2,-7);}
+  if(b.style==='chinese'){[[0,9.9,29,1.3],[0,-9.9,29,1.3]].forEach(([x,z,w,d])=>rbox(g,w,0.22,d,0.08,'#141619',x,1.0,z));[[13.9,0],[-13.9,0]].forEach(([x,z])=>rbox(g,1.3,0.22,21,0.08,'#141619',x,1.0,z));
+    [[14.3,10.3],[-14.3,10.3],[14.3,-10.3],[-14.3,-10.3]].forEach(([x,z])=>sphere(g,0.3,st.accent,x,1.25,z,{metalness:.6,roughness:.3}));}
+  if(b.style==='hotel'){box(g,27,0.12,0.36,st.accent,0,0.94,9.25,{metalness:.7,roughness:.3,noCast:true});box(g,0.36,0.12,19,st.accent,13.25,0.94,0,{metalness:.7,roughness:.3,noCast:true});
+    cyl(g,0.05,0.06,6,'#c8d0d5',11.5,3,-7.5);box(g,1.4,0.9,0.02,A,12.25,5.4,-7.5);}
+  if(b.style==='modern'){for(let i=0;i<4;i++){const p=rbox(g,2.2,0.06,1.3,0.02,'#24364a',-11+i*2.5,0.75,6,{metalness:.5,roughness:.3});p.rotation.x=-0.35;}}
+  const sy=b.style==='chinese'?3.6:2.9;
+  [-6.6,6.6].forEach(x=>box(g,0.18,sy-0.8,0.18,'#2a2f35',x,(sy-0.8)/2+0.2,8.5));
+  rbox(g,16.6,3.3,0.3,0.1,st.signBg,0,sy,8.5);
+  box(g,16.2,0.06,0.06,null,0,sy-1.62,8.68,{m:mat(st.accent,{emissive:st.accent,emissiveIntensity:1.5}),noCast:true});
+  signPlane(g,b,{glow:true},15.8,0,sy,8.67);
+}
+function bench(g,x,z,rot){const s=new THREE.Group();s.position.set(x,0,z);s.rotation.y=rot;g.add(s);rbox(s,1.8,0.08,0.5,0.03,'#a8754e',0,0.48,0);rbox(s,1.8,0.4,0.06,0.03,'#a8754e',0,0.75,-0.24);[-0.75,0.75].forEach(k=>box(s,0.06,0.45,0.5,'#2a2f35',k,0.22,0));}
+function lampPost(g,x,z){cyl(g,0.06,0.08,3.6,'#2a2f35',x,1.8,z);sphere(g,0.24,'#fff6dd',x,3.7,z,{emissive:'#ffe7b0',emissiveIntensity:.9});}
+function buildGrounds(g,b){
+  const st=STYLES[b.style],[A,B,C]=paletteFor(b,{idx:3});
+  tplane(g,-15,10,15,31,texMat('paving','#d9d3c6'),0.02,3);
+  [-1,1].forEach(s=>{
+    rbox(g,0.9,0.7,18,0.3,'#5f9e4f',s*14.6,0.35,21,{roughness:.95});
+    for(let k=0;k<3;k++){const z=14.5+k*5.5;rbox(g,4,0.45,2.4,0.2,'#e8e2d4',s*9.8,0.22,z);rbox(g,3.7,0.1,2.1,0.05,'#6b4a32',s*9.8,0.46,z);
+      for(let f=0;f<10;f++)leaf(g,0.24,pick([A,B,C,'#f2a7b5','#ffffff']),s*9.8+(f%5-2)*0.7,0.62,z+(f<5?-0.5:0.5)).castShadow=false;}
+    tree(g,s*12.6,12.5,1.1);tree(g,s*12.6,27,1.2);
+    bench(g,s*5.6,14,s>0?-Math.PI/2:Math.PI/2);bench(g,s*5.6,26,s>0?-Math.PI/2:Math.PI/2);
+    for(let z=12;z<31;z+=6)lampPost(g,s*3.6,z);
+    rbox(g,1.2,1,20,0.4,'#5f9e4f',s*15.6,0.5,0,{roughness:.95});
+  });
+  cyl(g,3.4,3.6,0.6,st.stone,0,0.3,21);const water=new THREE.Mesh(geo('water',()=>new THREE.CylinderGeometry(3.1,3.1,0.1,48)),mat('#6fb6d6',{roughness:.05,metalness:.3}));put(water,0,0.56,21,g,false);
+  cyl(g,0.4,0.6,1.2,st.stone,0,0.9,21);cyl(g,1.2,0.5,0.25,st.stone,0,1.6,21);
+  const jet=new THREE.Mesh(geo('jet',()=>new THREE.CylinderGeometry(0.06,0.2,1.6,12)),mat('#cfefff',{transparent:true,opacity:.6,emissive:'#bfe9ff',emissiveIntensity:.3,depthWrite:false}));jet.userData.noPick=true;put(jet,0,2.4,21,g,false);
+  [-11.4,-10,-8.6].forEach((x,i)=>{cyl(g,0.05,0.06,7,'#c8d0d5',x,3.5,29.4);box(g,1.3,0.8,0.02,[A,B,C][i],x+0.68,6.5,29.4);});
+  tbox(g,7,1.8,0.9,texMat('marble',st.stone),8.6,0.9,29.6,2,true);rbox(g,6.6,1.3,0.06,0.03,st.signBg,8.6,1.0,30.08);
+  signPlane(g,b,{},6.2,8.6,1.0,30.13);
+  rbox(g,30,1,1.2,0.4,'#5f9e4f',0,0.5,-11.8,{roughness:.95});
+  for(let x=-13;x<=13;x+=6.5)tree(g,x,-14.5,1.1);
+}
+const bRT={};
+function buildBuilding(b,Fs,preview){
+  const st=STYLES[b.style];const root=new THREE.Group();
+  const base=new THREE.Group();root.add(base);const sm=texMat('marble',st.stone);
+  tbox(base,28,0.6,20,sm,0,0.3,0,3);tbox(base,10,0.4,0.6,sm,0,0.2,10.3,3);tbox(base,10,0.2,0.6,sm,0,0.1,10.9,3);
+  mergeStatic(base);base.traverse(o=>o.userData.bId=b.id);
+  Fs.forEach((F,i)=>{const g=new THREE.Group();g.position.y=0.6+i*FH;root.add(g);F.group=g;buildFloorInto(g,F,b);mergeStatic(g);g.traverse(o=>{o.userData.fk=F.key;o.userData.bId=b.id;});});
+  const roof=new THREE.Group();roof.position.y=0.6+Fs.length*FH;root.add(roof);buildRoof(roof,b);mergeStatic(roof);roof.traverse(o=>o.userData.bId=b.id);
+  if(!preview){const gr=new THREE.Group();root.add(gr);buildGrounds(gr,b);mergeStatic(gr);gr.traverse(o=>o.userData.bId=b.id);}
+  return {root,roof,top:0.6+Fs.length*FH};
+}
+function rebuildCampusBuildings(){
+  Object.values(live).forEach(r=>scene.add(r.av.g));
+  Object.values(bRT).forEach(rt=>{campusG.remove(rt.root);disposeGroup(rt.root);rt.tag.remove();});
+  for(const k in bRT)delete bRT[k];deciLamps=[];
+  S.buildings.forEach(b=>{
+    const ex=buildBuilding(b,floorsOf(b));ex.root.position.set(SLOTX[b.slot]||0,0,0);campusG.add(ex.root);
+    const tag=document.createElement('div');tag.className='btag';tag.innerHTML='<b></b><span></span>';$('#labels').appendChild(tag);
+    bRT[b.id]={root:ex.root,roof:ex.roof,top:ex.top,tag,b};
+  });
+}
+
+/* =================== STATE =================== */
+const STORE='agent-office-v5';
+let S=null;
+const live={};
+let meeting=[],speed=1,selId=null,selB=null,follow=false,mode='world',viewKey=null;
+function hhmm(m){m=Math.floor(m);return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}
+const SB_URL='https://nabuuerjahwjsxsfgiuy.supabase.co',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hYnV1ZXJqYWh3anN4c2ZnaXV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwMjA4NTUsImV4cCI6MjEwODU5Njg1NX0.LKFa8kyz1cbajzC5rAluq34LL3_TPnbGIbEI2XJYgBY';
+let sbc=null;try{if(window.supabase&&location.protocol.startsWith('http')&&!/claudeusercontent|claude\.ai/.test(location.host))sbc=window.supabase.createClient(SB_URL,SB_KEY);}catch(e){sbc=null;}
+let authed=false,remoteAcc=0,remoteBusy=false;
+function save(){try{localStorage.setItem(STORE,JSON.stringify(S));}catch(e){}}
+async function saveRemote(){if(!sbc||!authed||remoteBusy||!S)return;remoteBusy=true;try{const {error}=await sbc.from('office_state').upsert({id:'main',data:S,updated_at:new Date().toISOString()});if(error)console.warn('save failed',error.message);}catch(e){console.warn(e);}remoteBusy=false;}
+async function loadRemote(){if(!sbc||!authed)return null;try{const {data}=await sbc.from('office_state').select('data').eq('id','main').maybeSingle();return data&&data.data&&Array.isArray(data.data.buildings)?data.data:null;}catch(e){return null;}}
+async function ensureLogin(){
+  if(!sbc)return;
+  const {data:{session}}=await sbc.auth.getSession();
+  if(session){authed=true;$('#outBtn').hidden=false;return;}
+  $('#login').hidden=false;setTimeout(()=>$('#lPass').focus(),50);
+  await new Promise(res=>{$('#lform').onsubmit=async e=>{e.preventDefault();const u=$('#lUser').value.trim().toLowerCase(),pw=$('#lPass').value;$('#lBtn').disabled=true;$('#lErr').hidden=true;
+    const {error}=await sbc.auth.signInWithPassword({email:`${u}@office.dkglobal.group`,password:pw});$('#lBtn').disabled=false;
+    if(error){$('#lErr').textContent='账号或密码不正确，请重新输入';$('#lErr').hidden=false;return;}
+    authed=true;$('#login').hidden=true;$('#outBtn').hidden=false;res();};});
+}
+$('#outBtn').onclick=async()=>{await saveRemote();if(sbc)await sbc.auth.signOut();location.reload();};
+addEventListener('pagehide',()=>{saveRemote();});
+function load(){try{const r=JSON.parse(localStorage.getItem(STORE)||'null');if(r&&Array.isArray(r.buildings)&&r.buildings.length)return r;}catch(e){}return null;}
+function addLog(txt,hl){S.log.push({t:hhmm(S.clock),txt,hl:!!hl});if(S.log.length>150)S.log.shift();if(!$('#pane-log').hidden)renderLog();}
+function remember(a,txt){if(!a)return;a.memory=a.memory||[];a.memory.push({d:S.day,t:hhmm(S.clock),txt});if(a.memory.length>50)a.memory.shift();if(selId===a.id)renderMem();}
+function pmLog(k,txt){S.pmLog.push({t:hhmm(S.clock),d:S.day,k,txt});if(S.pmLog.length>80)S.pmLog.shift();if(!$('#pane-back').hidden)renderBack();}
+const pmAgent=()=>Object.values(live).find(r=>r.a.role==='pm');
+const roleOf=a=>ROLES[a.role];
+
+/* =================== AGENTS =================== */
+function spawn(a){
+  const av=makeAvatar(a.look);scene.add(av.g);av.g.traverse(o=>o.userData.agentId=a.id);
+  const ring=new THREE.Mesh(ringGeo,ringMat);ring.rotation.x=-Math.PI/2;ring.position.y=0.03;ring.visible=false;av.g.add(ring);
+  const blob=new THREE.Mesh(geo('blob',()=>new THREE.PlaneGeometry(0.9,0.9)),blobMat);blob.rotation.x=-Math.PI/2;blob.position.y=0.02;av.g.add(blob);
+  const tag=document.createElement('div');tag.className='tag';tag.innerHTML='<div class="nm"><i></i><span></span></div><div class="st"></div>';
+  tag.querySelector('.nm span').textContent=a.name;$('#labels').appendChild(tag);
+  const r={a,av,ring,tag,floor:null,pos:new THREE.Vector3(),path:[],yaw:0,yawT:0,atSpot:null,target:null,act:'idle',task:'',timer:0,phase:Math.random()*6,queued:null,ride:null,riding:0,seated:false,follow:null,sub:null,calls:[],pausedUntil:-1,model:''};
+  live[a.id]=r;return r;
+}
+function claim(r,s){if('occ' in s)s.occ=r.a.id;}
+function release(r){const s=r.atSpot;if(s&&s.occ===r.a.id)s.occ=null;}
+function placeAt(r,s){r.floor=s.floor;r.pos.copy(s.pos);r.atSpot=s;r.target=s;r.yaw=r.yawT=s.face;r.seated=!!s.sit;r.path=[];r.ride=null;r.riding=0;claim(r,s);attach(r);}
+function goTo(r,s,act,task,timer){
+  if(!s)return;
+  if(r.path.length||r.riding>0){r.queued=[s,act,task,timer];claim(r,s);return;}
+  if(r.atSpot===s){r.act=act;r.task=task;r.timer=timer;r.blockLen=timer;return;}
+  const pts=[];
+  if(r.atSpot){const ap=r.atSpot.approach;for(let i=ap.length-1;i>=0;i--)pts.push(ap[i].clone());}else pts.push(V(r.pos.x,0));
+  release(r);claim(r,s);
+  r.target=s;r.atSpot=null;r.seated=false;r.act=act;r.task=task;r.timer=timer;r.blockLen=timer;
+  if(s.floor!==r.floor){pts.push(ELEV.clone());r.ride=s;}
+  else{s.approach.forEach(p=>pts.push(p.clone()));pts.push(s.pos.clone());}
+  r.path=pts;
+}
+const deskOf=r=>deskById[r.a.desk];
+function findDesk(a,bId){
+  const role=roleOf(a);const fl=allFloors().filter(F=>!bId||F.b.id===bId);
+  const free=F=>F.spots.desks.filter(d=>!d.owner);
+  const prefs=[];
+  if(role.level>=3)prefs.push(F=>F.type==='exec');
+  if(role.dept==='制作')prefs.push(F=>F.type==='studio');
+  prefs.push(F=>F.type==='work'&&F.dept===role.dept);
+  prefs.push(F=>F.type==='work');prefs.push(F=>F.type==='studio');prefs.push(F=>F.type==='exec');
+  for(const p of prefs)for(const F of fl)if(p(F)&&free(F).length)return free(F)[0];
+  if(bId)return findDesk(a,null);
+  return null;
+}
+function freeIn(list){const f=list.filter(s=>s.occ===null);return f.length?pick(f):null;}
+function loungeFor(r){
+  const b=FL[r.floor].b;
+  const near=floorsOf(b).filter(F=>F.type==='cafe'||F.type==='lobby'||F.type==='meeting'||F.type==='exec');
+  const sorted=[...near.filter(F=>F.type==='cafe'),...near.filter(F=>F.type!=='cafe')];
+  for(const F of sorted){const s=freeIn(F.spots.lounge);if(s)return s;}
+  for(const F of allFloors().filter(F=>F.type==='cafe')){const s=freeIn(F.spots.lounge);if(s)return s;}
+  return null;
+}
+function startWork(r,task){
+  const role=roleOf(r.a);let t=task,sub=null;
+  if(!t){sub=nextSub(r);if(sub)t='任务：'+sub.title;else if(r.follow){t=r.follow;r.follow=null;}else t=pick(role.tasks);}
+  r.sub=sub;
+  goTo(r,deskOf(r),'work',t,sub?ri(40,70):ri(45,110));
+  if(!task)modelCall(r,t,sub);
+  if(!task&&!sub&&Math.random()<0.25){const ok=S.vault.filter(v=>v.roles.includes(r.a.role)&&!v.approval&&!S.models.some(m=>m.vault===v.id));if(ok.length){const v=pick(ok);v.uses++;v.last=`第${S.day}天 ${hhmm(S.clock)} · ${r.a.name}`;}}
+  if(!task&&Math.random()<0.02)burst(r);
+}
+function nextActivity(r){
+  if(!r.floor||!deskOf(r))return;
+  if(meeting.some(m=>m.members.includes(r.a.id)))return;
+  const t=S.clock;
+  if(t>=720&&t<780&&r.lunch!==S.day){r.lunch=S.day;const s=loungeFor(r);if(s){goTo(r,s,'break','午餐时间',ri(30,50));return;}startWork(r,'在工位午休');r.timer=30;return;}
+  if(!r.sub&&Math.random()<0.2){const s=loungeFor(r);if(s){goTo(r,s,'break',s.what,ri(10,25));return;}}
+  startWork(r);
+}
+function endActivity(r){
+  if(r.act==='work'){
+    if(r.sub){r.sub.left-=r.blockLen||60;if(r.sub.left<=0)finishSub(r);}
+    else if(!/午休|等待|报到/.test(r.task))remember(r.a,'完成：'+r.task);
+  }
+  if(r.act==='collab'){nextActivity(r);return;}
+  if(r.act==='work'&&!r.sub&&!/报到/.test(r.task)&&Math.random()<0.2&&NEEDS[r.a.role]){if(seekHelp(r))return;}
+  if(r.act==='work'&&!/报到/.test(r.task)){
+    const p=[0.08,0.14,0.18,0.2,0.2][roleOf(r.a).level];
+    if(Math.random()<p){if(raiseDecision(r))return;}
+  }
+  nextActivity(r);
+}
+
+/* ---------- collaboration ---------- */
+function seekHelp(r){
+  const [dept,need]=pick(NEEDS[r.a.role]);
+  const anyone=S.agents.some(a=>roleOf(a).dept===dept);
+  if(!anyone){
+    if(S.decisions.some(d=>d.status==='pending'&&d.hire===dept))return false;
+    const role=HIRE_ROLE[dept];const pm=pmAgent();
+    addDecision({agentId:r.a.id,agentName:r.a.name,role:roleOf(r.a).label,title:`新建一名${ROLES[role].label} Agent（公司缺少${dept}部门）`,
+      detail:`${r.a.name} 需要「${need}」，组织里没有${dept}部门的成员，相关工作已暂停。`,opts:[['批准','yes'],['驳回','no']],hire:dept,
+      rev:pm?`${pm.a.name}（项目经理）：已核实缺口，建议批准`:'系统识别到部门缺口'});
+    remember(r.a,`找不到${dept}部门，已上报`);return false;
+  }
+  const cands=Object.values(live).filter(o=>o!==r&&roleOf(o.a).dept===dept&&o.act!=='report');
+  if(!cands.length)return false;
+  const o=cands.sort((x,y)=>(x.act==='work'?0:1)-(y.act==='work'?0:1))[0];
+  const desk=deskOf(o);if(!desk||!desk.visit||desk.visit.occ)return false;
+  goTo(r,desk.visit,'collab',`找 ${o.a.name}（${dept}）：${need}`,ri(10,18));
+  o.follow=`帮 ${r.a.name} 做：${need}`;o.bubble={txt:`${r.a.name} 找我要${need}`,until:performance.now()+4000};
+  remember(r.a,`去${dept}找 ${o.a.name} 要「${need}」`);remember(o.a,`${r.a.name}（${roleOf(r.a).dept}）请求：${need}`);
+  addLog(`${r.a.name} 去找${dept}的 ${o.a.name}：${need}`);
+  return true;
+}
+
+/* ---------- decisions (PM filters minor ones) ---------- */
+const pendingCount=()=>S.decisions.filter(d=>d.status==='pending').length;
+function bossSpot(){for(const F of allFloors())if(F.type==='exec'){const s=freeIn(F.spots.boss);if(s)return s;}return null;}
+function addDecision(o){
+  const d=Object.assign({id:'d'+uid(),status:'pending',at:hhmm(S.clock),day:S.day,opts:[['批准','yes'],['驳回','no']]},o);
+  S.decisions.push(d);addLog(`${d.agentName} 提交最终审批「${d.title}」`,true);
+  toast(`<b>${esc(d.agentName)}</b> 提交了一项需要你最终审批的事`);renderDecisions();save();return d;
+}
+function raiseDecision(r,fromMeeting){
+  const tpl=pick(roleOf(r.a).dec);const title=(fromMeeting?'会议结论：':'')+fill(tpl[0]),detail=fill(tpl[1]),opts=tpl[2]||[['批准','yes'],['驳回','no']],major=!!tpl[3];
+  const pm=pmAgent();
+  if(!major&&pm&&pm!==r){
+    const o=Math.random()<0.85?opts[0]:opts[opts.length-1];
+    pmLog('decide',`代为决定「${title}」→ ${o[0]}（${r.a.name} 提交）`);
+    remember(r.a,`项目经理 ${pm.a.name} 对「${title}」：${o[0]}`);remember(pm.a,`审批 ${r.a.name} 的「${title}」：${o[0]}`);
+    r.follow=o[1]==='yes'?'执行：'+title.replace(/^会议结论：/,''):'根据反馈调整方案';
+    return false;
+  }
+  if(pendingCount()>=6)return false;
+  const d=addDecision({agentId:r.a.id,agentName:r.a.name,role:roleOf(r.a).label,title,detail,opts,src:fromMeeting||null,
+    rev:pm&&pm!==r?`${pm.a.name}（项目经理）初审：${Math.random()<0.75?'风险可控，建议批准':'建议先小范围试行'}`:'直接提交给你'});
+  r.decId=d.id;
+  const s=bossSpot();
+  if(s){goTo(r,s,'report','等待 Dave 审批：'+title,35);return true;}
+  return false;
+}
+function resolve(id,choice,kind,note){
+  const d=S.decisions.find(x=>x.id===id);if(!d||d.status!=='pending')return;
+  d.status=kind==='yes'?'approved':'rejected';d.choice=choice;d.note=note||'';d.doneAt=hhmm(S.clock);
+  addLog(`你对「${d.title}」的决定：${choice}${note?'（'+note+'）':''}`,true);
+  const r=live[d.agentId];
+  if(r){remember(r.a,`Dave ${kind==='yes'?'批准':'驳回'}了「${d.title}」${note?'，留言：'+note:''}`);
+    r.decId=null;r.follow=kind==='yes'?'执行：'+d.title.replace(/^(会议结论|最终审批)：/,''):'根据 Dave 的反馈调整';
+    r.bubble={txt:kind==='yes'?'收到，马上执行':'明白，我去调整',until:performance.now()+2600};
+    if(r.act==='report'&&!r.path.length){release(r);startWork(r);}
+    if(kind==='yes'&&r.a.role==='finance'){const v=S.vault.find(v=>v.id==='v6');if(v){v.uses++;v.last=`第${S.day}天 ${hhmm(S.clock)} · ${r.a.name}（已获你批准）`;}}
+  }
+  if(d.taskId){const T=S.tasks.find(t=>t.id===d.taskId);if(T){T.status=kind==='yes'?'done':'rework';if(kind!=='yes'){T.subs.forEach(s=>{if(s.dept!=='项目管理'){s.status='todo';s.left=ri(30,60);}});T.status='active';}}renderTasks();}
+  if(d.budget&&kind==='yes'){S.budget.cap+=1000;}
+  renderDecisions();save();
+}
+
+/* ---------- tasks ---------- */
+function publishTask(title,desc,prio){
+  const T={id:'t'+uid(),title,desc,prio,status:'planning',day:S.day,at:hhmm(S.clock),subs:[],cost:0,planAbs:S.day*10000+S.clock+8};
+  S.tasks.push(T);addLog(`你发布了任务「${title}」`,true);
+  const pm=pmAgent();
+  if(pm){pm.follow='拆解任务：'+title;pm.bubble={txt:'收到新任务，开始拆解',until:performance.now()+3000};remember(pm.a,`接到 Dave 发布的任务「${title}」`);}
+  renderTasks();save();
+}
+function planTask(T){
+  const text=T.title+' '+T.desc;let depts=KW.filter(([re])=>re.test(text)).map(k=>k[1]);
+  if(!depts.length)depts=['产品','技术'];depts=[...new Set(depts)];
+  const pm=pmAgent();const missing=[];
+  depts.forEach(dept=>{
+    const pool=Object.values(live).filter(r=>roleOf(r.a).dept===dept);
+    if(!pool.length){missing.push(dept);return;}
+    const load=r=>S.tasks.reduce((n,t)=>n+t.subs.filter(s=>s.agentId===r.a.id&&s.status!=='done').length,0);
+    const who=pool.sort((a,b)=>load(a)-load(b)||roleOf(a.a).level-roleOf(b.a).level)[0];
+    T.subs.push({id:'s'+uid(),dept,title:`${T.title} · ${DEPT_WORK[dept]||'执行'}`,agentId:who.a.id,agentName:who.a.name,status:'todo',left:ri(70,150)});
+    remember(who.a,`被分配任务：${T.title} · ${DEPT_WORK[dept]||'执行'}`);
+  });
+  T.status=T.subs.length?'active':'blocked';
+  const names=T.subs.map(s=>`${s.dept}·${s.agentName}`).join('、');
+  addLog(`${pm?pm.a.name:'系统'} 拆解「${T.title}」：${names||'无可分配成员'}`);
+  if(pm)pmLog('decide',`拆解任务「${T.title}」，分配给 ${names||'—'}`);
+  missing.forEach(dept=>{const role=HIRE_ROLE[dept];if(!role||S.decisions.some(d=>d.status==='pending'&&d.hire===dept))return;
+    addDecision({agentId:pm?pm.a.id:'',agentName:pm?pm.a.name:'系统',role:'项目经理',title:`新建一名${ROLES[role].label} Agent（任务「${T.title}」缺少${dept}）`,detail:`该任务需要${dept}部门，组织里还没有这个部门的成员。`,hire:dept,rev:'项目经理已确认其他部门无法替代'});});
+  renderTasks();
+}
+function nextSub(r){for(const T of S.tasks){if(T.status!=='active')continue;const s=T.subs.find(s=>s.agentId===r.a.id&&s.status!=='done');if(s){s.status='doing';s.task=T.id;return s;}}return null;}
+function finishSub(r){
+  const s=r.sub;s.status='done';r.sub=null;const T=S.tasks.find(t=>t.id===s.task)||S.tasks.find(t=>t.subs.includes(s));
+  remember(r.a,`完成任务：${s.title}`);addLog(`${r.a.name} 完成「${s.title}」`);
+  if(T&&T.subs.every(x=>x.status==='done'))concludeTask(T);
+  renderTasks();
+}
+function concludeTask(T){
+  const pm=pmAgent();const hours=((S.day-T.day)*540+S.clock-(+T.at.slice(0,2)*60+ +T.at.slice(3)))/60;
+  const summary=T.subs.map(s=>`${s.dept}（${s.agentName}）已完成${DEPT_WORK[s.dept]||'执行'}`).join('；');
+  T.conclusion=`${summary}。用时约 ${Math.max(1,hours).toFixed(1)} 小时，模型花费 ${rm(T.cost)}。`;
+  const needsFinal=T.prio!=='普通'||/上线|发布|投放|付款|签约|部署|采购/.test(T.title+T.desc);
+  if(needsFinal){T.status='review';
+    addDecision({agentId:pm?pm.a.id:'',agentName:pm?pm.a.name:'系统',role:'项目经理',title:`最终审批：${T.title}`,detail:T.conclusion,taskId:T.id,opts:[['通过，执行','yes'],['打回重做','no']],rev:'各部门已完成，项目经理已验收'});}
+  else{T.status='done';S.reports.push({id:'r'+uid(),day:S.day,at:hhmm(S.clock),from:pm?pm.a.name:'系统',title:`任务完成：${T.title}`,text:T.conclusion});}
+  if(pm)remember(pm.a,`验收「${T.title}」`);
+  renderDecisions();
+}
+
+/* ---------- models & token governance ---------- */
+const modelById=id=>S.models.find(m=>m.id===id);
+function route(kind,cheap,hostOnly){for(const id of ROUTES[kind].chain){const m=modelById(id);if(!m||!m.on)continue;if(m.host==='self'&&!S.selfOnline)continue;if(hostOnly&&m.host!==hostOnly)continue;if(cheap&&m.cost>=0.3)continue;return m;}return null;}
+function modelCall(r,why,sub){
+  if(!sub&&Math.random()<0.4)return;
+  if(r.pausedUntil>S.clock&&r.pauseDay===S.day){r.model='已被暂停';return;}
+  let kind=roleOf(r.a).kind;if(kind!=='video'&&kind!=='image'&&Math.random()<0.15)kind='complex';
+  let m=route(kind);const pm=pmAgent();
+  if(!m){if(pm)pmLog('block',`${r.a.name} 需要${ROUTES[kind].label}模型，但没有可用模型，任务改为人工排期`);return;}
+  const prim=modelById(ROUTES[kind].chain[0]);
+  if(prim&&prim!==m&&prim.host==='self'&&!S.selfOnline&&Math.random()<0.5&&pm)pmLog('downgrade',`自建服务器离线，${r.a.name} 的${ROUTES[kind].label}请求自动切到 ${m.name}`);
+  if(pm&&m.host==='cloud'&&m.cost>=0.3){
+    const ok=sub||roleOf(r.a).level>=2;
+    if(!ok){const alt=route(kind==='complex'?'text':kind,true);if(alt&&alt!==m){pmLog('downgrade',`${r.a.name} 申请 ${m.name}（${why}），不属于项目任务，降级为 ${alt.name}`);m=alt;}
+      else{pmLog('block',`拒绝 ${r.a.name} 调用 ${m.name}（${why}）：非项目任务且无便宜替代`);return;}}
+    else pmLog('approve',`批准 ${r.a.name} 调用 ${m.name}：${why}`);
+  }
+  if(r.a.spendDay!==S.day){r.a.spendDay=S.day;r.a.spend=0;}
+  if(pm&&r.a.spend+m.cost>CAP_AGENT){const alt=route(kind==='complex'?'text':kind,true,'self');pmLog('block',`${r.a.name} 今日花费达到上限 ${rm(CAP_AGENT)}，${alt?'改用 '+alt.name:'暂停云端调用'}`);if(!alt)return;m=alt;}
+  charge(r,m,sub);
+  if(Math.random()<0.2)addLog(`${r.a.name} 用「${m.name}」处理：${why}`);
+}
+function charge(r,m,sub,n){
+  n=n||1;m.calls+=n;const c=m.cost*n;S.cost[m.host]+=c;S.budget.used+=c;r.a.spend=(r.a.spend||0)+c;r.model=m.name;
+  if(sub){const T=S.tasks.find(t=>t.id===sub.task);if(T)T.cost+=c;}
+  if(m.vault){const v=S.vault.find(v=>v.id===m.vault);if(v){v.uses+=n;v.last=`第${S.day}天 ${hhmm(S.clock)} · ${r.a.name}`;}}
+  for(let i=0;i<n;i++)r.calls.push(S.clock);if(r.calls.length>40)r.calls.splice(0,r.calls.length-40);
+  if(!S.budget.warned&&S.budget.used>S.budget.cap*0.8){S.budget.warned=true;const pm=pmAgent();
+    addDecision({agentId:pm?pm.a.id:'',agentName:pm?pm.a.name:'系统',role:'项目经理',title:`本月模型预算已用 ${Math.round(S.budget.used/S.budget.cap*100)}%，申请追加 RM 1,000`,detail:`已用 ${rm(S.budget.used)} / ${rm(S.budget.cap)}。自建模型占比 ${selfShare()}%。`,budget:true,rev:'项目经理已排除异常调用后提交'});}
+}
+const selfShare=()=>{const t=S.cost.self+S.cost.cloud;return t?Math.round(S.cost.self/t*100):0;};
+function burst(r){const m=route(roleOf(r.a).kind==='video'?'video':'text')||modelById('m2');if(!m)return;charge(r,m,null,ri(8,12));r.burst=true;}
+function pmWatch(){
+  const pm=pmAgent();
+  Object.values(live).forEach(r=>{
+    const recent=r.calls.filter(t=>S.clock-t<15&&S.clock>=t).length;
+    if(recent>6&&!(r.pausedUntil>S.clock&&r.pauseDay===S.day)){
+      if(pm){r.pausedUntil=S.clock+30;r.pauseDay=S.day;r.calls=[];
+        pmLog('anomaly',`检测到 ${r.a.name} 15 分钟内调用 ${recent} 次（疑似重试循环），已暂停其模型权限 30 分钟并排查`);
+        r.fixPending=true;r.bubble={txt:'模型权限被 PM 暂停',until:performance.now()+3500};remember(pm.a,`处理 ${r.a.name} 的异常调用`);}
+      else{r.calls=[];addLog(`${r.a.name} 出现异常高频调用（没有项目经理处理）`,true);}
+    }
+    if(r.fixPending&&S.clock>=r.pausedUntil){r.fixPending=false;S.anomFixed=(S.anomFixed||0)+1;
+      pmLog('anomaly',`${r.a.name} 异常已解决：接口超时导致重复重试，已加退避上限，恢复调用`);}
+  });
+}
+function dailyReport(){
+  const pm=pmAgent();const doneSubs=S.tasks.reduce((n,t)=>n+t.subs.filter(s=>s.status==='done'&&s.doneDay===undefined).length,0);
+  const tot=S.cost.self+S.cost.cloud;
+  if(pm)S.reports.push({id:'r'+uid(),day:S.day,at:'18:00',from:pm.a.name,title:`第 ${S.day} 天日报`,
+    text:`进行中任务 ${S.tasks.filter(t=>t.status==='active').length} 个，已完成 ${S.tasks.filter(t=>t.status==='done').length} 个。模型花费 ${rm(tot)}（自建占 ${selfShare()}%），本月已用 ${rm(S.budget.used)} / ${rm(S.budget.cap)}。今日异常 ${S.anomFixed||0} 起，均已自行处理。`});
+  S.cost={cloud:0,self:0};S.anomFixed=0;
+  if(S.reports.length>40)S.reports.splice(0,S.reports.length-40);
+  renderDecisions();
+}
+
+/* ---------- meetings ---------- */
+function freeRoom(b){const fls=[...floorsOf(b),...allFloors()].filter(F=>F.type==='meeting');for(const F of fls)for(const room of F.spots.rooms)if(room.every(s=>s.occ===null)&&!meeting.some(m=>m.room===room))return room;return null;}
+function maybeMeeting(){
+  if(S.clock<S.nextMeet||(S.clock>=720&&S.clock<780)||meeting.length>=2)return;
+  S.nextMeet=S.clock+ri(60,120);
+  const busy=new Set(meeting.flatMap(m=>m.members));
+  const avail=Object.values(live).filter(r=>r.act!=='report'&&!busy.has(r.a.id));
+  if(avail.length<3)return;
+  const pm=avail.find(r=>r.a.role==='pm');const act=S.tasks.filter(t=>t.status==='active');
+  let org,others,topic;
+  if(pm&&act.length&&Math.random()<0.55){const T=pick(act);org=pm;topic=`项目同步：${T.title}`;others=avail.filter(r=>T.subs.some(s=>s.agentId===r.a.id)&&r!==pm).slice(0,7);if(!others.length)return;}
+  else{const orgs=avail.filter(r=>roleOf(r.a).level>=2).sort((x,y)=>roleOf(y.a).level-roleOf(x.a).level);if(!orgs.length)return;
+    org=orgs[Math.random()<0.6?0:Math.floor(Math.random()*orgs.length)];topic=pick(MEET_TOPICS);
+    others=avail.filter(r=>r!==org).sort(()=>Math.random()-0.5).slice(0,ri(2,Math.min(6,avail.length-1)));}
+  const room=freeRoom(FL[deskOf(org).floor].b);if(!room)return;
+  const M={id:uid(),topic,room,org:org.a.id,members:[org.a.id,...others.map(r=>r.a.id)],endAbs:S.day*10000+S.clock+ri(35,50)};meeting.push(M);
+  goTo(org,room[0],'meet',`主持：${topic}`,999);others.forEach((r,i)=>goTo(r,room[i+1],'meet',`参加：${topic}`,999));
+  addLog(`${org.a.name} 召集「${topic}」，${others.map(r=>r.a.name).join('、')} 参加`);
+}
+function endMeeting(M){
+  meeting=meeting.filter(m=>m!==M);addLog(`「${M.topic}」结束`);
+  const names=M.members.map(id=>live[id]&&live[id].a.name).filter(Boolean).join('、');
+  M.members.forEach(id=>{const r=live[id];if(!r)return;remember(r.a,`参加「${M.topic}」（${names}）`);release(r);
+    if(id===M.org&&Math.random()<0.5){if(raiseDecision(r,M.topic))return;}r.act='idle';nextActivity(r);});
+}
+
+/* =================== LOOP =================== */
+const tmpV=new THREE.Vector3(),tmpC=new THREE.Vector3(),SUNOFF=new THREE.Vector3(38,70,34);
+let last=performance.now(),saveAcc=0,uiAcc=0,watchAcc=0;let camAnim=null;
+function attach(r){const F=r.floor&&FL[r.floor];if(F&&F.group&&r.av.g.parent!==F.group)F.group.add(r.av.g);}
+function frame(now){
+  const dt=Math.min(0.05,(now-last)/1000);last=now;const sdt=dt*speed;
+  if(speed>0){
+    S.clock+=sdt;
+    if(S.clock>=18*60){dailyReport();S.clock=9*60;S.day++;S.nextMeet=9*60+ri(20,40);addLog(`第 ${S.day} 天开始`);}
+    maybeMeeting();meeting.slice().forEach(M=>{if(S.day*10000+S.clock>=M.endAbs)endMeeting(M);});
+    S.tasks.forEach(T=>{if(T.status==='planning'&&S.day*10000+S.clock>=(T.planAbs||0))planTask(T);});
+    watchAcc+=sdt;if(watchAcc>3){watchAcc=0;pmWatch();}
+  }
+  Object.values(live).forEach(r=>updateAgent(r,dt,sdt,now));
+  if(camAnim){camAnim.t=Math.min(1,camAnim.t+dt/camAnim.dur);const k=1-Math.pow(1-camAnim.t,3);camera.position.lerpVectors(camAnim.p0,camAnim.p1,k);controls.target.lerpVectors(camAnim.t0,camAnim.t1,k);if(camAnim.t>=1)camAnim=null;}
+  else if(follow&&live[selId]&&live[selId].riding<=0){live[selId].av.g.getWorldPosition(tmpV);tmpV.y+=0.8;const d=tmpC.subVectors(tmpV,controls.target).multiplyScalar(0.08);controls.target.add(d);camera.position.add(d);}
+  clouds.forEach(c=>{c.position.x+=c.userData.v*dt;if(c.position.x>200)c.position.x=-200;});
+  cars.forEach(c=>{c.position.x+=c.userData.v*dt;if(c.position.x>c.userData.lim)c.position.x=-c.userData.lim;if(c.position.x<-c.userData.lim)c.position.x=c.userData.lim;});
+  Object.values(bRT).forEach(rt=>rt.roof.traverse(o=>{if(o.userData.spin)o.rotation.z+=dt*0.6;}));
+  const pc=pendingCount();deciLamps.forEach(m=>m.emissiveIntensity=pc?1.2+Math.sin(now/280)*0.8:0.2);
+  sun.target.position.copy(controls.target);sun.position.copy(controls.target).add(SUNOFF);
+  controls.update();renderer.render(scene,camera);updateLabels();
+  uiAcc+=dt;if(uiAcc>0.3){uiAcc=0;$('#clockT').textContent=hhmm(S.clock);$('#clockD').textContent=`第 ${S.day} 天`;refreshLive();}
+  saveAcc+=dt;if(saveAcc>5){saveAcc=0;save();}
+  remoteAcc+=dt;if(remoteAcc>20){remoteAcc=0;saveRemote();}
+  if(!$('#modal').hidden)renderPreview(dt,'agent');
+  if(!$('#bmodal').hidden)renderPreview(dt,'building');
+  requestAnimationFrame(frame);
+}
+function updateAgent(r,dt,sdt,now){
+  const av=r.av;
+  if(speed>0){
+    if(r.riding>0){r.riding-=sdt;if(r.riding<=0){r.riding=0;const s=r.ride;r.ride=null;r.floor=s.floor;attach(r);r.pos.copy(ELEV);r.path=[...s.approach.map(p=>p.clone()),s.pos.clone()];}}
+    else if(r.path.length){
+      const tgt=r.path[0];const dx=tgt.x-r.pos.x,dz=tgt.z-r.pos.z,dist=Math.hypot(dx,dz);const step=1.5*sdt;
+      if(dist>0.001)r.yawT=Math.atan2(dx,dz);
+      if(dist<=step){r.pos.x=tgt.x;r.pos.z=tgt.z;r.path.shift();
+        if(!r.path.length){
+          if(r.ride){r.riding=FL[r.ride.floor].b===FL[r.floor].b?2.5:7;}
+          else{const s=r.target;r.atSpot=s;r.seated=!!s.sit;r.yawT=s.face;if(r.queued){const q=r.queued;r.queued=null;goTo(r,...q);}}
+        }}
+      else{r.pos.x+=dx/dist*step;r.pos.z+=dz/dist*step;}
+      r.phase+=sdt*9;
+    }else{
+      if(r.act!=='meet'&&r.act!=='idle'){r.timer-=sdt;
+        if(r.timer<=0){if(r.act==='report'){release(r);r.bubble={txt:'先回去忙，等你回复',until:now+2500};r.act='idle';startWork(r,'等待 Dave 审批');}else endActivity(r);}}
+      if(r.act==='idle')nextActivity(r);
+    }
+  }
+  const visible=!!r.floor&&r.riding<=0;
+  av.g.visible=visible;if(!visible)return;
+  if(!av.g.parent||!av.g.parent.visible)return;
+  let d=r.yawT-r.yaw;d=Math.atan2(Math.sin(d),Math.cos(d));r.yaw+=d*Math.min(1,dt*10);
+  av.g.position.set(r.pos.x,0,r.pos.z);av.g.rotation.y=r.yaw;
+  const walking=r.path.length>0&&speed>0,t=now/1000;
+  const [L,R]=av.legs,[AL,AR]=av.arms;
+  if(walking){const s=Math.sin(r.phase);L.up.rotation.x=s*0.55;R.up.rotation.x=-s*0.55;L.kn.rotation.x=Math.max(0,-s)*0.6;R.kn.rotation.x=Math.max(0,s)*0.6;
+    AL.sh.rotation.x=-s*0.45;AR.sh.rotation.x=s*0.45;AL.el.rotation.x=AR.el.rotation.x=-0.25;av.hip.position.y=0.86+Math.abs(Math.cos(r.phase))*0.025;av.head.rotation.x=0;av.head.rotation.y=0;}
+  else if(r.seated){
+    av.hip.position.y=0.5;L.up.rotation.x=R.up.rotation.x=-Math.PI/2;L.kn.rotation.x=R.kn.rotation.x=Math.PI/2;
+    if(r.act==='work'){AL.sh.rotation.x=-0.55+Math.sin(t*14+r.phase)*0.04;AR.sh.rotation.x=-0.55+Math.cos(t*13+r.phase)*0.04;AL.el.rotation.x=AR.el.rotation.x=-0.85;av.head.rotation.x=0.1;av.head.rotation.y=Math.sin(t*0.4+r.phase)*0.15;}
+    else if(r.act==='meet'){const talk=Math.sin(t*1.2+r.phase*3)>0.5;AL.sh.rotation.x=-0.3;AL.el.rotation.x=-0.9;AR.sh.rotation.x=talk?-0.7+Math.sin(t*5)*0.25:-0.3;AR.el.rotation.x=talk?-1.2:-0.9;av.head.rotation.x=Math.sin(t*2+r.phase)*0.06;av.head.rotation.y=Math.sin(t*0.7+r.phase)*0.35;av.mouth.scale.y=talk?0.6+Math.abs(Math.sin(t*12))*0.8:1;}
+    else{AL.sh.rotation.x=AR.sh.rotation.x=-0.25;AL.el.rotation.x=AR.el.rotation.x=-0.6;av.head.rotation.x=-0.05;av.head.rotation.y=Math.sin(t*0.5+r.phase)*0.3;}
+  }else{
+    av.hip.position.y=0.86;L.up.rotation.x=R.up.rotation.x=0;L.kn.rotation.x=R.kn.rotation.x=0;av.head.rotation.x=0;
+    if(r.atSpot&&r.atSpot.bar){AR.sh.rotation.x=-0.5;AR.el.rotation.x=-1.4;AL.sh.rotation.x=0;AL.el.rotation.x=-0.1;}
+    else if(r.act==='collab'||r.act==='break'){const talk=Math.sin(t*1.4+r.phase*2)>0.3;AR.sh.rotation.x=talk?-0.5:-0.05;AR.el.rotation.x=talk?-1.1:-0.15;AL.sh.rotation.x=-0.05;AL.el.rotation.x=-0.15;av.mouth.scale.y=talk?0.6+Math.abs(Math.sin(t*11))*0.8:1;av.head.rotation.y=Math.sin(t*0.6+r.phase)*0.25;}
+    else{AL.sh.rotation.x=AR.sh.rotation.x=Math.sin(t*1.5+r.phase)*0.03;AL.el.rotation.x=AR.el.rotation.x=-0.12;av.head.rotation.y=Math.sin(t*0.5+r.phase)*0.2;}
+  }
+  if(!(r.act==='meet'||r.act==='collab'||r.act==='break')||walking)av.mouth.scale.y=1;
+  av.blink-=dt;const bl=av.blink<0.12&&av.blink>0;av.eyes.forEach(e=>e.scale.y=bl?0.12:1);if(av.blink<0)av.blink=2+Math.random()*4;
+  r.ring.visible=r.a.id===selId;
+}
+function stateOf(r){
+  if(r.riding>0||(r.path.length&&r.ride))return['s-ride','在路上'];
+  if(r.path.length)return['s-walk','走路中'];
+  return {work:['s-work','忙碌'],meet:['s-meet','开会中'],break:['s-break','空闲'],report:['s-report','等你审批'],collab:['s-collab','跨部门协作']}[r.act]||['s-idle','空闲'];
+}
+function shown(o){while(o){if(!o.visible)return false;o=o.parent;}return true;}
+function updateLabels(){
+  const w=stage.clientWidth,h=stage.clientHeight,now=performance.now();
+  Object.values(live).forEach(r=>{
+    if(!r.av.g.visible||!shown(r.av.g)){r.tag.style.display='none';return;}
+    r.av.g.getWorldPosition(tmpV);tmpV.y+=r.seated?1.85:2.2;
+    const near=camera.position.distanceTo(tmpV)<34,show=selId===r.a.id||(focus&&focus.key===r.floor)||near||(r.act==='report'&&!r.path.length);
+    if(!show){r.tag.style.display='none';return;}
+    tmpV.project(camera);if(tmpV.z>1){r.tag.style.display='none';return;}
+    r.tag.style.display='';r.tag.style.transform=`translate(${(tmpV.x*0.5+0.5)*w}px,${(-tmpV.y*0.5+0.5)*h}px) translate(-50%,-100%)`;
+    const [cls]=stateOf(r);const txt=r.bubble&&r.bubble.until>now?r.bubble.txt:r.task;const key=cls+'|'+txt+'|'+(selId===r.a.id);
+    if(r.tagKey!==key){r.tagKey=key;r.tag.className='tag '+cls+(selId===r.a.id?' sel':'')+(r.act==='report'&&!r.path.length?' wait':'');r.tag.querySelector('.st').textContent=txt;}
+  });
+  Object.values(bRT).forEach(rt=>{
+    tmpV.set(0,rt.top+(rt.b.style==='chinese'?6.2:5.4),8.5);rt.root.localToWorld(tmpV);tmpV.project(camera);
+    if(tmpV.z>1||(focus&&focus.b.id===rt.b.id)){rt.tag.style.display='none';return;}
+    rt.tag.style.display='';rt.tag.style.transform=`translate(${(tmpV.x*0.5+0.5)*w}px,${(-tmpV.y*0.5+0.5)*h}px) translate(-50%,-100%)`;
+    const n=Object.values(live).filter(r=>r.floor&&FL[r.floor]&&FL[r.floor].b===rt.b&&r.riding<=0).length;
+    const key=rt.b.name+n+rt.b.floors.length;if(rt.key!==key){rt.key=key;rt.tag.querySelector('b').textContent=rt.b.name;rt.tag.querySelector('span').textContent=`${rt.b.floors.length} 层 · ${n} 人在楼内`;}
+  });
+}
+
+/* =================== CAMERA / FOCUS =================== */
+let focus=null;
+function flyTo(px,py,pz,tx,ty,tz,dur){camAnim={p0:camera.position.clone(),t0:controls.target.clone(),p1:new THREE.Vector3(px,py,pz),t1:new THREE.Vector3(tx,ty,tz),t:0,dur:dur||0.9};}
+function setFloorsVisible(){S.buildings.forEach(b=>{const rt=bRT[b.id];if(!rt)return;const fi=focus&&focus.b.id===b.id?focus.idx:Infinity;floorsOf(b).forEach((F,i)=>{if(F&&F.group)F.group.visible=i<=fi;});rt.roof.visible=fi===Infinity;});}
+function focusFloor(key){
+  const F=FL[key];if(!F||!bRT[F.b.id])return;focus=F;selB=F.b.id;setFloorsVisible();
+  const p=bRT[F.b.id].root.position,y=0.6+F.idx*FH,narrow=stage.clientWidth<820;
+  flyTo(p.x+(narrow?22:17),y+(narrow?27:19),p.z+(narrow?36:28),p.x+(narrow?0:2),y+0.6,p.z+1);
+  Object.values(live).forEach(r=>r.tagKey=null);renderNav();
+}
+function overview(bId){
+  focus=null;setFloorsVisible();
+  if(bId&&bRT[bId]){const p=bRT[bId].root.position,h=bRT[bId].top;flyTo(p.x+34,h*0.75+16,p.z+58,p.x,h*0.45,p.z+3);}
+  else{const xs=S.buildings.map(b=>bRT[b.id].root.position.x);const cx=(Math.min(...xs)+Math.max(...xs))/2,span=Math.max(...xs)-Math.min(...xs);const narrow=stage.clientWidth<820;
+    flyTo(cx+30+span*0.2,40+span*0.18+(narrow?20:0),74+span*0.55+(narrow?40:0),cx,9,3);}
+  renderNav();
+}
+
+/* =================== PICKING =================== */
+const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();let downAt=null;
+renderer.domElement.addEventListener('pointerdown',e=>{downAt=[e.clientX,e.clientY];});
+renderer.domElement.addEventListener('pointerup',e=>{
+  if(!downAt||Math.hypot(e.clientX-downAt[0],e.clientY-downAt[1])>6)return;
+  const rc=renderer.domElement.getBoundingClientRect();ndc.set((e.clientX-rc.left)/rc.width*2-1,-(e.clientY-rc.top)/rc.height*2+1);ray.setFromCamera(ndc,camera);
+  const targets=[...Object.values(bRT).map(rt=>rt.root)];
+  const hits=ray.intersectObjects(targets,true);
+  for(const h of hits){const o=h.object;if(o.userData.noPick||!shown(o))continue;
+    if(o.userData.agentId){selectAgent(o.userData.agentId);return;}
+    if(o.userData.fk){if(!focus||focus.key!==o.userData.fk)focusFloor(o.userData.fk);selB=o.userData.bId;renderDrawer();return;}
+    if(o.userData.bId){selectBuilding(o.userData.bId);return;}
+  }
+});
+controls.addEventListener('start',()=>{camAnim=null;if(follow){follow=false;renderDrawer();}});
+
+/* =================== UI =================== */
+function toast(html){const t=$('#toast');t.innerHTML=html;t.hidden=false;t.style.opacity=1;clearTimeout(toast.h);toast.h=setTimeout(()=>{t.style.opacity=0;setTimeout(()=>t.hidden=true,300);},2800);}
+$$('.tab').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+const RENDER={dec:()=>renderDecisions(),task:()=>renderTasks(true),team:()=>renderTeam(),bld:()=>renderBuildings(),back:()=>renderBack(true),log:()=>renderLog()};
+function showTab(k){$$('.tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===k));['dec','task','team','bld','back','log'].forEach(x=>$('#pane-'+x).hidden=x!==k);RENDER[k]();}
+$('#pendBtn').onclick=()=>showTab('dec');
+$$('#speed button').forEach(b=>b.onclick=()=>{speed=+b.dataset.s;$$('#speed button').forEach(x=>x.classList.toggle('on',x===b));});
+
+function renderNav(){
+  const nav=$('#nav');const b=focus?focus.b:(selB?S.buildings.find(x=>x.id===selB):null);
+  nav.innerHTML=`<button data-go="world" class="${!b?'cur':''}">园区</button><span class="sep">›</span><select id="navB" aria-label="选择大楼">${b?'':'<option value="">选择大楼…</option>'}${S.buildings.map(x=>`<option value="${x.id}" ${b&&x.id===b.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select>`+
+   (b?`<span class="sep">›</span><button data-step="-1" aria-label="往下一层" ${focus&&focus.idx===0?'disabled':''}>▼</button><select id="navF" aria-label="选择楼层"><option value="all" ${!focus?'selected':''}>整栋</option>${b.floors.map((f,i)=>`<option value="${i}" ${focus&&focus.idx===i?'selected':''}>${i+1}F · ${esc(f.name)}</option>`).reverse().join('')}</select><button data-step="1" aria-label="往上一层" ${!focus?'disabled':''}>▲</button>`:'');
+  $('#navB').onchange=e=>{const id=e.target.value;if(!id)return;selectBuilding(id);overview(id);};
+  const nf=$('#navF');if(nf)nf.onchange=e=>{if(e.target.value==='all')overview(b.id);else focusFloor(fkey(b,+e.target.value));};
+  nav.onclick=e=>{const g=e.target.closest('[data-go]');if(g){selB=null;if(!selId)$('#drawer').hidden=true;overview();return;}
+    const st=e.target.closest('[data-step]');if(!st||!b)return;const d=+st.dataset.step;
+    if(!focus){if(d<0)focusFloor(fkey(b,b.floors.length-1));return;}
+    const ni=focus.idx+d;if(ni>=b.floors.length)overview(b.id);else if(ni>=0)focusFloor(fkey(b,ni));};
+}
+
+function avStyle(a){const L=a.look;return `--bg:#e8eef0;--tp:${L.top};--sk:${L.skin};--hc:${L.hair==='none'?L.skin:L.hairColor}`;}
+function decCard(d,pending){return `<div class="card${pending?' pending':''}" data-id="${d.id}">
+  <div class="meta"><span class="who">${esc(d.agentName)}</span><span>${esc(d.role)}</span><span>· 第 ${d.day} 天 ${d.at}</span>${d.src?`<span>· 来自「${esc(d.src)}」</span>`:''}</div>
+  <h4>${esc(d.title)}</h4><p>${esc(d.detail)}</p>${d.rev?`<div class="rev">${esc(d.rev)}</div>`:''}
+  ${pending?`<input type="text" id="note-${d.id}" placeholder="留句话（可选）" maxlength="60"><div class="opts">${d.opts.map(([l,k])=>`<button class="opt ${k}" data-l="${esc(l)}" data-k="${k}">${esc(l)}</button>`).join('')}</div>`
+  :`<div class="res ${d.status==='approved'?'yes':'no'}">你的决定：${esc(d.choice)} · ${d.doneAt}${d.note?' · '+esc(d.note):''}</div>`}</div>`;}
+function renderDecisions(){
+  const p=S.decisions.filter(d=>d.status==='pending');
+  $('#pendN').textContent=p.length;$('#pendBtn').dataset.n=p.length;$('#tabN').textContent=p.length;$('#tabN').dataset.n=p.length;
+  if($('#pane-dec').hidden||busy('#pane-dec'))return;
+  const reps=S.reports.slice(-8).reverse(),done=S.decisions.filter(d=>d.status!=='pending').slice(-12).reverse();
+  $('#pane-dec').innerHTML=`<div class="rule"><b>这里只出现两类东西：需要你最终拍板的事，以及结论。</b>日常审批、模型调用和异常处理都由项目经理负责。</div>
+   <div class="h">待你审批（${p.length}）</div>
+   ${p.length?p.map(d=>decCard(d,true)).join(''):'<div class="empty">暂时没有需要你拍板的事。</div>'}
+   <div class="h">结论</div>
+   ${reps.length?reps.map(r=>`<div class="card concl"><div class="meta"><span class="who">${esc(r.from)}</span><span>· 第 ${r.day} 天 ${r.at}</span></div><h4>${esc(r.title)}</h4><p>${esc(r.text)}</p></div>`).join(''):'<div class="empty">任务完成后，结论会出现在这里。</div>'}
+   ${done.length?`<details class="done"><summary>已处理的审批（${done.length}）</summary>${done.map(d=>decCard(d,false)).join('')}</details>`:''}`;
+}
+$('#pane-dec').addEventListener('click',e=>{const b=e.target.closest('.opt');if(!b)return;const id=b.closest('.card').dataset.id;const n=$('#note-'+id);resolve(id,b.dataset.l,b.dataset.k,n?n.value.trim():'');});
+
+function renderTasks(force){
+  if($('#pane-task').hidden||(!force&&busy('#pane-task')))return;
+  const ST={planning:'项目经理拆解中',active:'进行中',review:'等你最终审批',done:'已完成',blocked:'缺少部门，等待招人',rework:'返工中'};
+  const draft=$('#tTitle')?{t:$('#tTitle').value,d:$('#tDesc').value,p:$('#tPrio').value}:{t:'',d:'',p:'普通'};
+  const list=S.tasks.slice().reverse();
+  $('#pane-task').innerHTML=`<form class="pform" id="tForm"><div class="h" style="margin:0">发布任务给项目经理</div>
+    <input type="text" id="tTitle" placeholder="任务标题，例如：做一支 30 秒新品宣传短片" maxlength="40" required value="${esc(draft.t)}">
+    <textarea id="tDesc" placeholder="补充要求：目标、交付物、截止时间…" maxlength="300">${esc(draft.d)}</textarea>
+    <div class="row"><select id="tPrio" aria-label="优先级">${['普通','重要','紧急'].map(x=>`<option ${x===draft.p?'selected':''}>${x}</option>`).join('')}</select><button class="btn primary" type="submit" ${pmAgent()?'':'disabled'}>发布</button></div>
+    <span style="font-size:11.5px;color:var(--ink-2)">${pmAgent()?'项目经理会按部门拆解并分配。重要、紧急的任务，以及涉及上线、发布、投放、付款的任务，完成后会交给你做最终审批。':'公司还没有项目经理，请先新建一名职位为「项目经理」的 Agent。'}</span></form>
+    ${list.length?list.map(T=>{const done=T.subs.filter(s=>s.status==='done').length,tot=T.subs.length||1;const prog=T.subs.length?Math.round(T.subs.reduce((n,s)=>n+(s.status==='done'?1:s.status==='doing'?0.5:0),0)/tot*100):0;
+      return `<div class="card"><div class="meta"><span class="who">${esc(T.prio)}</span><span>· 第 ${T.day} 天 ${T.at} 发布</span><span>· ${ST[T.status]||T.status}</span></div>
+      <h4>${esc(T.title)}</h4>${T.desc?`<p>${esc(T.desc)}</p>`:''}
+      <div class="bar"><i style="width:${T.status==='done'?100:prog}%"></i></div>
+      ${T.subs.length?`<div class="subs">${T.subs.map(s=>`<div><span class="d">${esc(s.dept)}</span><span>${esc(s.agentName)}</span><span class="s ${s.status}">${{todo:'待开始',doing:'进行中',done:'完成'}[s.status]}</span></div>`).join('')}</div>`:''}
+      <div class="meta">已花费 ${rm(T.cost)}</div>${T.conclusion?`<div class="rev">${esc(T.conclusion)}</div>`:''}</div>`;}).join(''):'<div class="empty">还没有任务。</div>'}`;
+  $('#tForm').onsubmit=e=>{e.preventDefault();const t=$('#tTitle').value.trim();if(!t)return;publishTask(t,$('#tDesc').value.trim(),$('#tPrio').value);$('#tTitle').value='';$('#tDesc').value='';document.activeElement.blur();renderTasks(true);toast('任务已交给项目经理');};
+}
+
+function renderTeam(){
+  if($('#pane-team').hidden)return;
+  const dc={};S.agents.forEach(a=>{const d=roleOf(a).dept;dc[d]=(dc[d]||0)+1;});
+  const by=[4,3,2,1,0].map(l=>[l,S.agents.filter(a=>roleOf(a).level===l)]).filter(x=>x[1].length);
+  $('#pane-team').innerHTML=`<div class="rule">共 ${S.agents.length} 名 Agent。每个 Agent 都知道下面这些部门，需要协作时会自己去找对应的人。</div><div class="depts">${Object.entries(dc).map(([d,n])=>`<span class="chip">${d} · ${n}</span>`).join('')}</div>`+
+    by.map(([l,arr])=>`<div class="lvl">${LVL_NAME[l]}</div>`+arr.map(a=>{const r=live[a.id];const[cls,lab]=r?stateOf(r):['',''];const F=r&&r.floor?FL[r.floor]:null;
+      return `<div class="member${a.id===selId?' sel':''}" data-id="${a.id}"><span class="av" style="${avStyle(a)}"></span><span class="info"><b>${esc(a.name)}</b><span>${roleOf(a).label} · ${F?esc(F.b.name)+' '+(F.idx+1)+'F':''}</span></span><span class="chip ${cls}" data-chip="${a.id}"><i></i>${lab}</span></div>`;}).join('')).join('');
+}
+$('#pane-team').addEventListener('click',e=>{const m=e.target.closest('.member');if(m)selectAgent(m.dataset.id,true);});
+
+function renderBuildings(){
+  if($('#pane-bld').hidden)return;
+  $('#pane-bld').innerHTML=`<button class="btn dark" id="bNew2">＋ 新建大楼</button>`+S.buildings.map(b=>`<div class="bcard"><div class="top"><div><b>${esc(b.name)}</b><br><span>${STYLES[b.style].label} · ${b.floors.length} 层</span></div><button class="btn ghost sm" data-edit="${b.id}">编辑</button></div>
+    <div class="flist">${b.floors.map((f,i)=>({f,i})).reverse().map(({f,i})=>{const n=Object.values(live).filter(r=>r.floor===fkey(b,i)&&r.riding<=0).length;return `<button data-floor="${fkey(b,i)}"><span class="fn">${i+1}F</span><span>${esc(f.name)}<br><span class="ft">${FT[f.type]}${f.dept?' · '+f.dept:''}</span></span><span class="ft">${n} 人</span></button>`;}).join('')}</div></div>`).join('');
+}
+$('#pane-bld').addEventListener('click',e=>{const f=e.target.closest('[data-floor]');if(f){focusFloor(f.dataset.floor);return;}const ed=e.target.closest('[data-edit]');if(ed){openBModal(S.buildings.find(b=>b.id===ed.dataset.edit));return;}if(e.target.closest('#bNew2'))openBModal(null);});
+
+function busy(id){const a=document.activeElement;return a&&a!==document.body&&$(id).contains(a)&&/INPUT|TEXTAREA|SELECT/.test(a.tagName);}
+function renderBack(force){
+  if($('#pane-back').hidden||(!force&&busy('#pane-back')))return;
+  const tot=S.cost.self+S.cost.cloud;const roleOpts=Object.entries(ROLES).map(([k,r])=>`<label><input type="checkbox" value="${k}" name="vr">${r.label}</label>`).join('');
+  $('#pane-back').innerHTML=`
+  <div class="server"><div><b>自建 GPU 服务器</b><br><span>${S.selfOnline?'在线 · 开源文本 / 图像 / 视频模型优先':'离线 · 请求已自动切到云端备用'}</span></div><button class="tg ${S.selfOnline?'on':''}" id="srvTg" aria-label="切换自建服务器在线状态"></button></div>
+  <div class="kpis"><div class="kpi"><span>今日花费</span><b>${rm(tot)}</b></div><div class="kpi"><span>自建占比</span><b>${selfShare()}%</b></div><div class="kpi"><span>本月预算</span><b>${Math.round(S.budget.used/S.budget.cap*100)}%</b></div></div>
+  <div class="h">模型（费用为估算，可在后台配置）</div>
+  ${S.models.map(m=>`<div class="mrow"><b>${esc(m.name)}</b><button class="tg ${m.on?'on':''}" data-mtg="${m.id}" aria-label="启用或停用 ${esc(m.name)}"></button><span class="m2">${{text:'文本',video:'视频',image:'图像'}[m.kind]} · ${m.host==='self'?'自建':'云端'} · ${rm(m.cost)}/次 · ${m.note} · 已调用 ${m.calls} 次</span></div>`).join('')}
+  <div class="h">调用路由（从左到右依次尝试）</div>
+  <dl class="routes">${Object.values(ROUTES).map(r=>`<dt>${r.label}</dt><dd>${r.chain.map(id=>esc(modelById(id).name)).join(' → ')}</dd>`).join('')}</dl>
+  <div class="h">项目经理审核记录</div>
+  <div class="pmlog">${S.pmLog.slice(-18).reverse().map(l=>`<div><time>${l.t}</time><span class="k ${l.k}">${{approve:'批准',downgrade:'降级',anomaly:'异常',block:'拒绝',decide:'决定'}[l.k]}</span><span>${esc(l.txt)}</span></div>`).join('')||'<div class="empty">还没有记录</div>'}</div>
+  <div class="h">插件与机器人</div>
+  <div class="rule">${authed?'<b>后台已连接。</b>这里填的密钥会直接存进后台金库，保存后页面和 Agent 都看不到明文，只能替换。':'<b>后台未连接。</b>登录后才能保存密钥。'}需要登录授权的插件，点「去授权」用你的账号登录一次即可。Agent 发现缺少某个平台的插件时，会自动开发并出现在这里，等你登录授权。</div>
+  ${S.plugins.map(pl=>`<div class="vitem"><div class="vt"><b>${esc(pl.name)}</b><span class="lock">${esc(pl.status)}</span></div><div class="meta">${esc(pl.desc)}</div>${pl.by?`<div class="meta">${esc(pl.by)}</div>`:''}
+    ${pl.kind==='bot'?pl.fields.map(([k,l])=>`<input type="password" class="pin" id="pl-${pl.id}-${k}" placeholder="${l}${pl.status==='已配置'?'（已保存，输入新值可替换）':''}" aria-label="${l}" autocomplete="off" ${authed?'':'disabled'}>`).join('')+`<button class="btn ghost sm" data-plsave="${pl.id}" ${authed?'':'disabled'}>保存到金库</button>`:'<button class="btn ghost sm" disabled>去授权（下一步接入）</button>'}</div>`).join('')}
+  <div class="h">金库</div>
+  <div class="rule">密钥只存在后台金库。Agent 只能请求调用，由后台代为注入凭证，Agent 看不到明文。标记为“每次需批准”的凭证，必须在你批准相关事项后才会使用。这个页面不保存任何真实密钥。</div>
+  ${S.vault.map(v=>`<div class="vitem"><div class="vt"><b>${esc(v.name)}</b><span class="mask">••••••••</span><button class="del" data-vdel="${v.id}">移除</button></div>
+    <div class="meta"><span class="chip">${esc(v.kind)}</span>${v.approval?'<span class="lock">每次需批准</span>':''}${v.roles.length===Object.keys(ROLES).length?'<span class="chip">全部职位</span>':v.roles.map(k=>`<span class="chip">${ROLES[k]?ROLES[k].label:k}</span>`).join('')}</div>
+    <div class="meta">已调用 ${v.uses||0} 次${v.last?' · 最近：'+esc(v.last):''}</div></div>`).join('')}
+  <form class="pform" id="vForm"><div class="h" style="margin:0">登记新凭证</div>
+    <input type="text" id="vName" placeholder="名称，例如：Stripe API" maxlength="30" required>
+    <select id="vKind" aria-label="凭证类型"><option>API Key</option><option>登录账号</option><option>OAuth Token</option><option>数据库连接</option></select>
+    <div class="checks">${roleOpts}</div>
+    <label class="checks"><input type="checkbox" id="vAppr"> 每次调用都需要我批准</label>
+    <button class="btn ghost" type="submit">登记到金库</button></form>`;
+}
+async function refreshSecretStatus(){if(!sbc||!authed)return;try{const {data}=await sbc.rpc('secret_status');const ok=new Set((data||[]).filter(x=>x.configured).map(x=>x.item_id));
+  S.plugins.forEach(pl=>{if(pl.kind==='bot'&&pl.fields.every(([k])=>ok.has(`${pl.id}_${k}`)))pl.status='已配置';});renderBack(true);}catch(e){}}
+$('#pane-back').addEventListener('click',async e=>{
+  const ps=e.target.closest('[data-plsave]');if(ps){const pl=S.plugins.find(x=>x.id===ps.dataset.plsave);if(!pl||!sbc||!authed)return;
+    const vals=pl.fields.map(([k,l])=>[k,l,$(`#pl-${pl.id}-${k}`).value.trim()]).filter(x=>x[2]);if(!vals.length){toast('请先填写内容');return;}
+    ps.disabled=true;try{for(const [k,l,v] of vals){const {error}=await sbc.rpc('set_secret',{p_item_id:`${pl.id}_${k}`,p_name:`${pl.name} · ${l}`,p_kind:pl.kind,p_value:v});if(error)throw error;}
+      addLog(`${pl.name} 的密钥已存进金库`,true);toast('已存进金库');await refreshSecretStatus();saveRemote();}catch(err){toast('保存失败：'+(err.message||'请稍后再试'));ps.disabled=false;}return;}
+  if(e.target.id==='srvTg'){S.selfOnline=!S.selfOnline;addLog(S.selfOnline?'自建 GPU 服务器恢复在线':'自建 GPU 服务器离线，开源模型请求切到云端备用',true);renderBack(true);save();return;}
+  const m=e.target.closest('[data-mtg]');if(m){const x=modelById(m.dataset.mtg);x.on=!x.on;renderBack(true);save();return;}
+  const d=e.target.closest('[data-vdel]');if(d){const v=S.vault.find(x=>x.id===d.dataset.vdel);S.vault=S.vault.filter(x=>x!==v);addLog(`你从金库移除了「${v.name}」`);renderBack(true);save();}
+});
+$('#pane-back').addEventListener('submit',e=>{e.preventDefault();const name=$('#vName').value.trim();if(!name)return;const roles=$$('input[name=vr]:checked').map(x=>x.value);
+  S.vault.push({id:'v'+uid(),name,kind:$('#vKind').value,roles,approval:$('#vAppr').checked,uses:0});addLog(`你在金库登记了「${name}」`);renderBack(true);save();});
+function renderLog(){const el=$('#log');el.innerHTML=S.log.slice().reverse().map(l=>`<div><time>${l.t}</time><span class="${l.hl?'hl':''}">${esc(l.txt)}</span></div>`).join('')||'<div class="empty">还没有动态</div>';}
+function refreshLive(){
+  if(!$('#pane-team').hidden)$$('[data-chip]').forEach(ch=>{const r=live[ch.dataset.chip];if(!r)return;const[cls,lab]=stateOf(r);if(ch.dataset.k!==cls){ch.dataset.k=cls;ch.className='chip '+cls;ch.innerHTML='<i></i>'+lab;}});
+  if(selId&&!$('#drawer').hidden){const r=live[selId];if(r){const[cls,lab]=stateOf(r);const s=$('#dState');if(s){s.className='chip '+cls;s.innerHTML='<i></i>'+lab;$('#dTask').textContent=r.task;$('#dWhere').textContent=r.floor?`${FL[r.floor].b.name} ${FL[r.floor].idx+1}F · ${FL[r.floor].name}`:'—';$('#dModel').textContent=r.model||'—';}}}
+}
+function selectAgent(id,go){
+  selId=id;selB=null;const r=live[id];
+  if(go&&r&&r.floor)focusFloor(r.riding>0&&r.ride?r.ride.floor:r.floor);
+  renderTeam();renderDrawer();Object.values(live).forEach(x=>x.tagKey=null);
+}
+function selectBuilding(id){selB=id;selId=null;follow=false;renderDrawer();renderNav();renderTeam();Object.values(live).forEach(x=>x.tagKey=null);}
+let delArm=false;
+function renderDrawer(){
+  const dr=$('#drawer');delArm=false;
+  if(selB){const b=S.buildings.find(x=>x.id===selB);if(!b){dr.hidden=true;return;}dr.hidden=false;
+    dr.innerHTML=`<div class="hd"><div><h3>${esc(b.name)}</h3><span class="badge" style="--bc:${STYLES[b.style].accent}">${STYLES[b.style].label} · ${b.floors.length} 层</span></div><button class="x" id="dClose" aria-label="关闭">×</button></div>
+    <div class="flist" style="border:1px solid var(--line);border-radius:10px;overflow:hidden">${b.floors.map((f,i)=>({f,i})).reverse().map(({f,i})=>{const n=Object.values(live).filter(r=>r.floor===fkey(b,i)&&r.riding<=0).length;return `<button data-floor="${fkey(b,i)}"><span class="fn">${i+1}F</span><span>${esc(f.name)}<br><span class="ft">${FT[f.type]}${f.dept?' · '+f.dept:''}</span></span><span class="ft">${n} 人</span></button>`;}).join('')}</div>
+    <div class="row"><button class="btn primary" id="dEnter">整栋视图</button><button class="btn ghost" id="dEditB">编辑大楼</button></div>`;
+    dr.querySelector('.flist').onclick=e=>{const f=e.target.closest('[data-floor]');if(f)focusFloor(f.dataset.floor);};
+    $('#dEnter').onclick=()=>overview(b.id);$('#dEditB').onclick=()=>openBModal(b);
+    $('#dClose').onclick=()=>{selB=null;dr.hidden=true;};return;}
+  const a=S.agents.find(x=>x.id===selId);if(!a){dr.hidden=true;return;}
+  const r=live[a.id],role=roleOf(a),[cls,lab]=stateOf(r);
+  dr.hidden=false;
+  dr.innerHTML=`<div class="hd"><span class="av" style="${avStyle(a)}"></span><div><h3>${esc(a.name)}</h3><span class="badge" style="--bc:${LVL_COLOR[role.level]}">${role.label} · ${role.dept} · L${role.level}</span></div><button class="x" id="dClose" aria-label="关闭">×</button></div>
+   <dl class="kv"><dt>状态</dt><dd><span class="chip ${cls}" id="dState"><i></i>${lab}</span></dd><dt>正在做</dt><dd id="dTask">${esc(r.task)}</dd><dt>位置</dt><dd id="dWhere"></dd><dt>当前模型</dt><dd id="dModel">${esc(r.model||'—')}</dd><dt>今日花费</dt><dd>${rm(a.spendDay===S.day?a.spend||0:0)}</dd></dl>
+   <div class="sub">性格 / 工作方式</div><div class="prompt">${a.prompt?esc(a.prompt):'未设置'}</div>
+   <div class="sub">记忆（最近）</div><div class="mem" id="dMem"></div>
+   <div class="row"><button class="btn ghost" id="dFollow">${follow?'取消跟随':'跟随视角'}</button><button class="btn ghost" id="dEdit">编辑外观与服装</button><button class="btn danger" id="dDel">离职</button></div>`;
+  renderMem();refreshLive();
+  $('#dClose').onclick=()=>{selId=null;follow=false;dr.hidden=true;renderTeam();Object.values(live).forEach(r=>r.tagKey=null);};
+  $('#dFollow').onclick=()=>{follow=!follow;if(follow&&r.floor)focusFloor(r.floor);renderDrawer();};
+  $('#dEdit').onclick=()=>openModal(a);
+  $('#dDel').onclick=e=>{if(!delArm){delArm=true;e.target.textContent='确认离职？';return;}removeAgent(a.id);};
+}
+function renderMem(){const el=$('#dMem');const a=S.agents.find(x=>x.id===selId);if(!el||!a)return;const m=(a.memory||[]).slice(-7).reverse();
+  el.innerHTML=m.length?m.map(x=>`<div><time>D${x.d} ${x.t}</time><span>${esc(x.txt)}</span></div>`).join(''):'<span style="color:var(--ink-2)">还没有记忆，工作一段时间后会出现</span>';}
+function removeAgent(id){
+  const r=live[id];if(!r)return;release(r);meeting.forEach(m=>m.members=m.members.filter(x=>x!==id));
+  if(r.av.g.parent)r.av.g.parent.remove(r.av.g);r.tag.remove();delete live[id];
+  const a=S.agents.find(x=>x.id===id);const desk=deskById[a.desk];if(desk)desk.owner=null;
+  S.agents=S.agents.filter(x=>x.id!==id);
+  S.decisions.forEach(d=>{if(d.agentId===id&&d.status==='pending'){d.status='rejected';d.choice='已撤回（成员离职）';d.doneAt=hhmm(S.clock);}});
+  S.tasks.forEach(T=>T.subs.forEach(s=>{if(s.agentId===id&&s.status!=='done'){s.status='todo';const o=Object.values(live).find(x=>roleOf(x.a).dept===s.dept);if(o){s.agentId=o.a.id;s.agentName=o.a.name;}}}));
+  addLog(`${a.name} 已离职`);selId=null;follow=false;$('#drawer').hidden=true;renderTeam();renderDecisions();save();
+}
+
+/* =================== PREVIEW RENDERER (modals) =================== */
+const pvR=new THREE.WebGLRenderer({antialias:true,alpha:true});pvR.setPixelRatio(Math.min(devicePixelRatio,2));pvR.outputEncoding=THREE.sRGBEncoding;pvR.toneMapping=THREE.ACESFilmicToneMapping;pvR.shadowMap.enabled=true;
+const pvScenes={};
+function mkPv(){const s=new THREE.Scene();s.environment=pmrem.fromScene(new THREE.RoomEnvironment(),0.04).texture;s.add(new THREE.HemisphereLight(0xffffff,0x8a9096,0.4));const l=new THREE.DirectionalLight(0xfff2e0,1.3);l.position.set(2,5,4);l.castShadow=true;s.add(l);return s;}
+pvScenes.agent={s:mkPv(),c:new THREE.PerspectiveCamera(26,1,0.1,60),obj:null,rot:0.4};
+pvScenes.agent.c.position.set(0,1.25,4.6);pvScenes.agent.c.lookAt(0,0.92,0);
+{const base=new THREE.Mesh(new THREE.CylinderGeometry(0.75,0.78,0.08,48),mat('#ffffff',{roughness:.4}));base.position.y=-0.04;base.receiveShadow=true;pvScenes.agent.s.add(base);}
+pvScenes.building={s:mkPv(),c:new THREE.PerspectiveCamera(32,1,0.5,400),obj:null,rot:0.6};
+{const base=new THREE.Mesh(new THREE.CylinderGeometry(10,10,0.3,64),mat('#a6d18e',{roughness:.95}));base.position.y=-0.15;base.receiveShadow=true;pvScenes.building.s.add(base);}
+function renderPreview(dt,k){
+  const P=pvScenes[k],wrap=k==='agent'?$('#pv'):$('#bpv');
+  if(pvR.domElement.parentNode!==wrap)wrap.prepend(pvR.domElement);
+  const w=wrap.clientWidth,h=wrap.clientHeight;if(P.w!==w||P.h!==h){P.w=w;P.h=h;pvR.setSize(w,h,false);P.c.aspect=w/h;P.c.updateProjectionMatrix();}
+  P.rot+=dt*0.5;if(P.obj){P.obj.g.rotation.y=Math.sin(P.rot)*(k==='agent'?0.6:0.9)+(k==='building'?0.5:0);
+    if(k==='agent'){const t=performance.now()/1000;P.obj.arms[1].sh.rotation.x=Math.sin(t*1.8)*0.12;P.obj.head.rotation.y=Math.sin(t*0.8)*0.25;P.obj.blink-=dt;const bl=P.obj.blink<0.12&&P.obj.blink>0;P.obj.eyes.forEach(e=>e.scale.y=bl?0.12:1);if(P.obj.blink<0)P.obj.blink=2+Math.random()*3;}}
+  pvR.render(P.s,P.c);
+}
+
+/* =================== AGENT MODAL =================== */
+let draft=null,editId=null;
+$('#fRole').innerHTML=Object.entries(ROLES).sort((a,b)=>b[1].level-a[1].level).map(([k,r])=>`<option value="${k}">${r.label}（L${r.level} · ${r.dept}）</option>`).join('');
+function swatches(sel,list,key){const el=$(sel);el.innerHTML=list.map(c=>`<button type="button" class="sw" data-v="${c}" style="background:${c}" aria-label="颜色 ${c}"></button>`).join('');
+  el.onclick=e=>{const b=e.target.closest('.sw');if(!b)return;draft.look[key]=b.dataset.v;syncForm();rebuildAgentPreview();};}
+function pills(sel,list,key){const el=$(sel);el.innerHTML=list.map(([v,l])=>`<button type="button" data-v="${v}">${l}</button>`).join('');
+  el.onclick=e=>{const b=e.target.closest('button');if(!b)return;draft.look[key]=b.dataset.v;syncForm();rebuildAgentPreview();};}
+swatches('#sSkin',SKINS,'skin');swatches('#sEye',EYES,'eye');swatches('#sHairC',HAIRC,'hairColor');swatches('#sTop',TOPS,'top');swatches('#sAccent',ACCENTS,'accent');swatches('#sBottom',BOTS,'bottom');swatches('#sShoes',SHOES,'shoes');
+pills('#sHair',HAIRS,'hair');pills('#sOutfit',OUTFITS,'outfit');pills('#sBottomT',BOTTOMT,'bottomType');
+$('#sAcc').onclick=e=>{const b=e.target.closest('button');if(!b)return;draft.look[b.dataset.v]=!draft.look[b.dataset.v];syncForm();rebuildAgentPreview();};
+function syncForm(){
+  [['#sSkin','skin'],['#sEye','eye'],['#sHairC','hairColor'],['#sTop','top'],['#sAccent','accent'],['#sBottom','bottom'],['#sShoes','shoes']].forEach(([s,k])=>$$(s+' .sw').forEach(b=>b.classList.toggle('on',b.dataset.v===draft.look[k])));
+  [['#sHair','hair'],['#sOutfit','outfit'],['#sBottomT','bottomType']].forEach(([s,k])=>$$(s+' button').forEach(b=>b.classList.toggle('on',b.dataset.v===draft.look[k])));
+  $$('#sAcc button').forEach(b=>b.classList.toggle('on',!!draft.look[b.dataset.v]));
+  const dress=draft.look.outfit==='dress';$('#bottomTypeFld').hidden=dress;$('#bottomColFld').hidden=dress;
+}
+function rebuildAgentPreview(){const P=pvScenes.agent;if(P.obj)P.s.remove(P.obj.g);P.obj=makeAvatar(draft.look);P.s.add(P.obj.g);
+  $('#pvName').textContent=draft.name||'新员工';$('#pvRole').textContent=ROLES[draft.role].label+' · '+ROLES[draft.role].dept;}
+function randomLook(){const fem=Math.random()<0.5;return {skin:pick(SKINS),eye:pick(EYES),hair:fem?pick(['long','bob','bun','pony','fringe']):pick(['short','buzz','curly','fringe']),hairColor:pick(HAIRC.slice(0,5)),
+  outfit:fem?pick(['tee','shirt','blazer','dress','hoodie']):pick(['tee','shirt','blazer','hoodie','mandarin']),top:pick(TOPS),accent:pick(ACCENTS),bottomType:fem?pick(['pants','skirt']):'pants',bottom:pick(BOTS),shoes:pick(SHOES),glasses:Math.random()<0.3,headphones:Math.random()<0.15};}
+$('#fName').oninput=e=>{draft.name=e.target.value;$('#pvName').textContent=draft.name||'新员工';};
+$('#fRole').onchange=e=>{draft.role=e.target.value;rebuildAgentPreview();};
+$('#fPrompt').oninput=e=>{draft.prompt=e.target.value;};
+$('#fBld').onchange=e=>{draft.bld=e.target.value;};
+function openModal(a){
+  editId=a?a.id:null;
+  draft=a?JSON.parse(JSON.stringify({name:a.name,role:a.role,prompt:a.prompt,look:a.look,bld:''})):{name:'',role:'engineer',prompt:'',look:randomLook(),bld:''};
+  $('#mTitle').textContent=a?'编辑 Agent':'新建 AI Agent';$('#saveBtn').textContent=a?'保存':'入职';
+  $('#fName').value=draft.name;$('#fRole').value=draft.role;$('#fPrompt').value=draft.prompt||'';
+  $('#fBld').innerHTML=`<option value="">${a?'保持当前工位':'按部门自动分配'}</option>`+S.buildings.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('');
+  const free=allFloors().reduce((n,F)=>n+F.spots.desks.filter(d=>!d.owner).length,0);
+  $('#deskNote').textContent=a?'修改会立即生效':free?`园区剩余工位 ${free} 个`:'工位已满，请先新建大楼或增加办公层';
+  $('#saveBtn').disabled=!a&&!free;
+  syncForm();rebuildAgentPreview();$('#modal').hidden=false;setTimeout(()=>$('#fName').focus(),30);
+}
+const closeModal=()=>{$('#modal').hidden=true;};
+$('#newBtn').onclick=()=>openModal(null);$('#cancelBtn').onclick=closeModal;
+$('#modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal();});
+$('#form').onsubmit=e=>{
+  e.preventDefault();const name=draft.name.trim();if(!name){$('#fName').focus();return;}
+  if(editId){
+    const a=S.agents.find(x=>x.id===editId),r=live[editId];const roleChanged=a.role!==draft.role;
+    Object.assign(a,{name,role:draft.role,prompt:(draft.prompt||'').trim(),look:draft.look});
+    const old=r.av.g;const nav=makeAvatar(a.look);nav.g.traverse(o=>o.userData.agentId=a.id);old.remove(r.ring);nav.g.add(r.ring);
+    const blob=old.children.find(o=>o.material===blobMat);if(blob){old.remove(blob);nav.g.add(blob);}
+    const par=old.parent||scene;par.remove(old);par.add(nav.g);r.av=nav;r.tag.querySelector('.nm span').textContent=a.name;r.tagKey=null;
+    if(draft.bld){const d=findDesk(a,draft.bld);if(d&&FL[d.floor].b.id===draft.bld){const old=deskById[a.desk];if(old)old.owner=null;d.owner=a.id;a.desk=d.id;r.path=[];r.queued=null;release(r);startWork(r,'搬到新工位');}}
+    if(roleChanged)addLog(`${a.name} 调任为 ${roleOf(a).label}`);
+  }else{
+    const a={id:'a'+uid(),name,role:draft.role,prompt:(draft.prompt||'').trim(),look:draft.look,memory:[]};
+    const desk=findDesk(a,draft.bld||null);if(!desk)return;desk.owner=a.id;a.desk=desk.id;
+    S.agents.push(a);const r=spawn(a);r.floor=desk.floor;attach(r);r.pos.copy(ELEV);r.atSpot=null;startWork(r,'报到入职');
+    const F=FL[desk.floor];addLog(`${a.name} 入职，担任 ${roleOf(a).label}，工位在 ${F.b.name} ${F.idx+1}F`);remember(a,`入职，担任${roleOf(a).label}`);
+    toast(`<b>${esc(a.name)}</b> 已入职，正前往 ${esc(F.b.name)} ${F.idx+1}F`);selId=a.id;selB=null;
+  }
+  closeModal();renderTeam();renderDrawer();renderTasks();save();
+};
+
+/* =================== BUILDING MODAL =================== */
+let bdraft=null,bEditId=null;
+$('#bStyles').innerHTML=Object.entries(STYLES).map(([k,s])=>`<button type="button" data-v="${k}"><i style="--sw:linear-gradient(90deg,${s.sw[0]} 0 40%,${s.sw[1]} 40% 75%,${s.sw[2]} 75%)"></i>${s.label}</button>`).join('');
+$('#bPal').innerHTML=Object.entries(PALETTES).map(([k,p])=>`<button type="button" data-v="${k}"><span class="pdots">${p.c.slice(0,5).map(c=>`<i style="background:${c}"></i>`).join('')}</span>${p.label}</button>`).join('');
+$('#bPal').onclick=e=>{const b=e.target.closest('button');if(!b)return;bdraft.palette=b.dataset.v;syncB();rebuildBPreview();};
+$('#bLogo').onchange=e=>{const f=e.target.files[0];e.target.value='';if(!f)return;if(!/^image\//.test(f.type)){toast('请选择图片文件');return;}if(f.size>5e6){toast('图片太大，请用 5MB 以内的图片');return;}
+  const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,320/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*k));c.height=Math.max(1,Math.round(im.height*k));c.getContext('2d').drawImage(im,0,0,c.width,c.height);bdraft.logo=c.toDataURL('image/png');syncB();rebuildBPreview();};im.onerror=()=>toast('这张图片无法读取，请换一张');im.src=fr.result;};fr.readAsDataURL(f);};
+$('#bLogoDel').onclick=()=>{bdraft.logo='';syncB();rebuildBPreview();};
+$('#bStyles').onclick=e=>{const b=e.target.closest('button');if(!b)return;bdraft.style=b.dataset.v;syncB();rebuildBPreview();};
+function planFloors(n,purpose){
+  const W=d=>({type:'work',name:d+'部',dept:d});
+  const seqs={hq:[W('技术'),W('产品'),{type:'meeting',name:'会议中心'},W('设计'),{type:'cafe',name:'咖啡厅'},W('市场'),W('财务'),W('技术'),{type:'meeting',name:'会议中心'},{type:'cafe',name:'休息区'}],
+    rd:[W('技术'),W('技术'),{type:'meeting',name:'会议中心'},W('技术'),{type:'cafe',name:'咖啡厅'},W('产品'),W('技术'),W('技术'),{type:'meeting',name:'评审中心'},W('技术')],
+    media:[{type:'studio',name:'视频工作室'},{type:'studio',name:'影棚二'},W('设计'),{type:'cafe',name:'茶歇区'},{type:'studio',name:'后期剪辑'},{type:'meeting',name:'审片室'},W('市场'),{type:'studio',name:'影棚三'},W('设计'),{type:'cafe',name:'休息区'}],
+    mixed:[W('市场'),W('财务'),{type:'meeting',name:'会议中心'},{type:'cafe',name:'咖啡厅'},W('产品'),W('设计'),W('技术'),{type:'meeting',name:'会议中心'},W('市场'),{type:'cafe',name:'休息区'}]};
+  const f=[{type:'lobby',name:'大堂'}];const mid=n-2,seq=seqs[purpose];
+  for(let i=0;i<mid;i++)f.push(Object.assign({},seq[i%seq.length]));
+  if(n>=2)f.push(purpose==='hq'?{type:'exec',name:'总裁层 · 决策室'}:purpose==='media'?{type:'cafe',name:'空中露台'}:{type:'cafe',name:'空中咖啡厅'});
+  return f.slice(0,n);
+}
+function renderPlan(){
+  $('#bPlan').innerHTML=bdraft.floors.map((f,i)=>({f,i})).reverse().map(({f,i})=>`<div data-i="${i}"><span class="n">${i+1}F</span>
+    <select data-k="type" aria-label="${i+1}F 用途">${Object.entries(FT).map(([k,l])=>`<option value="${k}" ${k===f.type?'selected':''}>${l}</option>`).join('')}</select>
+    <input type="text" data-k="name" value="${esc(f.name)}" maxlength="14" aria-label="${i+1}F 名称">
+    <select class="dp" data-k="dept" aria-label="${i+1}F 部门" ${f.type==='work'?'':'hidden'}>${DEPTS.filter(d=>d!=='管理层'&&d!=='项目管理').map(d=>`<option ${d===f.dept?'selected':''}>${d}</option>`).join('')}</select></div>`).join('');
+}
+$('#bPlan').addEventListener('change',e=>{const row=e.target.closest('[data-i]');if(!row)return;const f=bdraft.floors[+row.dataset.i];const k=e.target.dataset.k;f[k]=e.target.value;
+  if(k==='type'){f.name=FT[f.value]||FT[f.type];if(f.type==='work'){f.dept=f.dept||'技术';f.name=f.dept+'部';}else delete f.dept;renderPlan();}
+  if(k==='dept'){f.name=f.dept+'部';renderPlan();}rebuildBPreview();});
+$('#bPlan').addEventListener('input',e=>{const row=e.target.closest('[data-i]');if(row&&e.target.dataset.k==='name')bdraft.floors[+row.dataset.i].name=e.target.value;});
+function syncB(){$$('#bStyles button').forEach(b=>b.classList.toggle('on',b.dataset.v===bdraft.style));$$('#bPal button').forEach(b=>b.classList.toggle('on',b.dataset.v===bdraft.palette));const lp=$('#bLogoPv');lp.style.backgroundImage=bdraft.logo?`url(${bdraft.logo})`:'';lp.classList.toggle('empty',!bdraft.logo);$('#bLogoDel').hidden=!bdraft.logo;$('#bFloorsV').textContent=bdraft.floors.length+' 层';$('#bFloors').value=bdraft.floors.length;
+  $('#bpvName').textContent=bdraft.name||'新大楼';$('#bpvInfo').textContent=`${STYLES[bdraft.style].label} · ${bdraft.floors.length} 层`;}
+let bpvT=null;
+function rebuildBPreview(){clearTimeout(bpvT);bpvT=setTimeout(()=>{const P=pvScenes.building;if(P.obj){P.s.remove(P.obj.g);disposeGroup(P.obj.g);}
+  const tb={id:'pv',name:bdraft.name||'新大楼',sign:bdraft.sign||bdraft.name||'新大楼',style:bdraft.style,palette:bdraft.palette,logo:bdraft.logo,slot:0,floors:bdraft.floors};
+  const Fs=bdraft.floors.map((fd,i)=>{const F={key:'pv-f'+i,b:tb,idx:i,type:fd.type,name:fd.name,dept:fd.dept||''};layoutFloor(F);return F;});
+  const ex=buildBuilding(tb,Fs,true);const g=new THREE.Group();ex.root.scale.setScalar(0.3);g.add(ex.root);P.obj={g};P.s.add(g);
+  const top=ex.top*0.3+1.2,dist=Math.max(15,top*1.5+9);P.c.position.set(dist*0.6,top*0.75+3,dist*0.85);P.c.lookAt(0,top*0.42,0);syncB();},150);}
+function regen(){bdraft.floors=planFloors(+$('#bFloors').value,$('#bPurpose').value);renderPlan();rebuildBPreview();}
+$('#bFloors').oninput=e=>{$('#bFloorsV').textContent=e.target.value+' 层';};
+$('#bFloors').onchange=regen;$('#bPurpose').onchange=regen;$('#bGen').onclick=regen;
+$('#bName').oninput=e=>{bdraft.name=e.target.value;if(!$('#bSign').dataset.touched)bdraft.sign='';$('#bpvName').textContent=bdraft.name||'新大楼';rebuildBPreview();};
+$('#bSign').oninput=e=>{bdraft.sign=e.target.value;e.target.dataset.touched='1';rebuildBPreview();};
+function openBModal(b){
+  bEditId=b?b.id:null;
+  if(!b&&S.buildings.length>=8){toast('园区地块已满（最多 8 栋）');return;}
+  bdraft=b?JSON.parse(JSON.stringify({name:b.name,sign:b.sign,style:b.style,floors:b.floors,purpose:b.purpose||'mixed',palette:b.palette||'vivid',logo:b.logo||''})):{name:'',sign:'',style:'hotel',floors:planFloors(5,'rd'),purpose:'rd',palette:'fresh',logo:''};
+  $('#bTitle').textContent=b?'编辑大楼':'新建大楼';$('#bSave').textContent=b?'保存':'建造';$('#bDel').hidden=!b||S.buildings[0].id===b.id;$('#bDel').textContent='拆除';$('#bDel').dataset.arm='';
+  $('#bName').value=bdraft.name;$('#bSign').value=bdraft.sign||'';$('#bSign').dataset.touched=bdraft.sign?'1':'';$('#bPurpose').value=bdraft.purpose;
+  renderPlan();syncB();rebuildBPreview();$('#bmodal').hidden=false;setTimeout(()=>$('#bName').focus(),30);
+}
+const closeB=()=>{$('#bmodal').hidden=true;};
+$('#newBBtn').onclick=()=>openBModal(null);$('#bCancel').onclick=closeB;
+$('#bmodal').addEventListener('click',e=>{if(e.target.id==='bmodal')closeB();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#modal').hidden)closeModal();if(!$('#bmodal').hidden)closeB();}});
+$('#bDel').onclick=e=>{const b=S.buildings.find(x=>x.id===bEditId);if(!b)return;
+  if(!e.target.dataset.arm){e.target.dataset.arm='1';e.target.textContent='确认拆除？楼内成员会搬到其他大楼';return;}
+  const others=allFloors().filter(F=>F.b!==b).reduce((n,F)=>n+F.spots.desks.filter(d=>!d.owner).length,0);
+  const inside=S.agents.filter(a=>deskById[a.desk]&&FL[deskById[a.desk].floor].b===b).length;
+  if(inside>others){toast('其他大楼工位不够，先新建大楼或增加办公层');return;}
+  S.buildings=S.buildings.filter(x=>x!==b);addLog(`拆除了「${b.name}」`,true);closeB();focus=null;selB=null;$('#drawer').hidden=true;applyBuildings();overview();};
+$('#bform').onsubmit=e=>{e.preventDefault();const name=bdraft.name.trim();if(!name){$('#bName').focus();return;}
+  const sign=(bdraft.sign||'').trim()||name;
+  if(bEditId){const b=S.buildings.find(x=>x.id===bEditId);Object.assign(b,{name,sign,style:bdraft.style,floors:bdraft.floors,purpose:$('#bPurpose').value,palette:bdraft.palette,logo:bdraft.logo});addLog(`更新了「${name}」的设计`);}
+  else{const used=new Set(S.buildings.map(b=>b.slot));const slot=[0,1,2,3,4,5,6,7].find(s=>!used.has(s));
+    const b={id:'b'+uid(),name,sign,style:bdraft.style,floors:bdraft.floors,purpose:$('#bPurpose').value,slot,palette:bdraft.palette,logo:bdraft.logo};S.buildings.push(b);addLog(`新建大楼「${name}」，${b.floors.length} 层`,true);toast(`<b>${esc(name)}</b> 已建成`);}
+  closeB();focus=null;applyBuildings();const bid=bEditId||S.buildings[S.buildings.length-1].id;selectBuilding(bid);overview(bid);
+  renderBuildings();save();};
+function applyBuildings(){
+  rebuildFloors();meeting=[];
+  const rts=Object.values(live);
+  rts.forEach(r=>{r.path=[];r.queued=null;r.ride=null;r.riding=0;r.atSpot=null;});
+  rebuildCampusBuildings();
+  const assigned=new Set();
+  rts.forEach(r=>{const d=deskById[r.a.desk];if(d&&!d.owner){d.owner=r.a.id;assigned.add(r.a.id);}});
+  rts.forEach(r=>{if(!assigned.has(r.a.id)){const d=findDesk(r.a);if(d){d.owner=r.a.id;r.a.desk=d.id;}}});
+  rts.forEach(r=>{const d=deskById[r.a.desk];if(d&&d.owner===r.a.id){placeAt(r,d);r.act='work';r.task=r.sub?'任务：'+r.sub.title:pick(roleOf(r.a).tasks);r.timer=ri(10,60);r.blockLen=r.timer;}
+    else{r.floor=null;r.act='idle';r.av.g.visible=false;}});
+  if(focus)focus=FL[focus.key]||null;setFloorsVisible();renderNav();
+}
+
+/* =================== BOOT =================== */
+function seed(){
+  const L=(o)=>Object.assign({skin:SKINS[1],eye:EYES[0],hair:'short',hairColor:HAIRC[0],outfit:'tee',top:'#f4f4f1',accent:'#c2453b',bottomType:'pants',bottom:BOTS[0],shoes:SHOES[1],glasses:false,headphones:false},o);
+  S={day:1,clock:10*60+12,nextMeet:10*60+16,
+    buildings:[
+      {id:'b1',name:'DK Global Group',sign:'DK GLOBAL GROUP',style:'hotel',palette:'elegant',logo:'',purpose:'hq',slot:0,floors:[{type:'lobby',name:'大堂'},{type:'work',name:'技术部',dept:'技术'},{type:'work',name:'设计与产品',dept:'设计'},{type:'work',name:'市场部',dept:'市场'},{type:'studio',name:'视频工作室'},{type:'meeting',name:'会议中心'},{type:'cafe',name:'空中咖啡厅'},{type:'exec',name:'总裁层 · 决策室'}]}],
+    agents:[
+      {id:'a1',name:'林总',role:'director',prompt:'稳重，看全局。先问“为什么做”，再问“怎么做”。',look:L({skin:SKINS[1],hair:'short',hairColor:'#1b1716',outfit:'blazer',top:'#1f2a38',accent:'#c2453b',bottom:'#1f2a38',shoes:'#2a2f35',glasses:true})},
+      {id:'a2',name:'Nora',role:'pm',prompt:'项目经理。拆解任务、盯进度、审核每一笔模型调用；能自己解决的问题不打扰 Dave，只汇报结论。',look:L({skin:SKINS[0],hair:'bob',hairColor:'#3b2a20',outfit:'shirt',top:'#9fc3e6',accent:'#f4f4f1',bottomType:'skirt',bottom:'#2a2f35',shoes:'#2a2f35'})},
+      {id:'a3',name:'Aisha',role:'manager',prompt:'擅长把模糊需求拆成清晰任务，重视用户反馈。',look:L({skin:SKINS[3],hair:'long',hairColor:'#1b1716',outfit:'blazer',top:'#6b4fd8',accent:'#f4f4f1',bottom:'#2a2f35',eye:EYES[0]})},
+      {id:'a4',name:'阿杰',role:'lead',prompt:'代码洁癖，所有合并必须过评审和测试。负责自建 GPU 服务器。',look:L({skin:SKINS[2],hair:'buzz',hairColor:'#1b1716',outfit:'hoodie',top:'#1f8a94',accent:'#f4f4f1',bottom:'#3b4a66',shoes:'#f2f2ef',glasses:true})},
+      {id:'a5',name:'Jay',role:'engineer',prompt:'后端工程师，熟悉 Node.js 与 Supabase。',look:L({skin:SKINS[1],hair:'fringe',hairColor:'#3b2a20',outfit:'tee',top:'#2b55c9',bottom:'#b9b2a5',shoes:'#f2f2ef',headphones:true,accent:'#1c2329'})},
+      {id:'a6',name:'Mei',role:'designer',prompt:'偏爱简洁的界面，每次给出两套方案让人挑。',look:L({skin:SKINS[0],hair:'bun',hairColor:'#6b4630',outfit:'dress',top:'#e39a2d',accent:'#1c2329',shoes:'#6d4a32'})},
+      {id:'a7',name:'Ravi',role:'marketing',prompt:'数据驱动，投放前一定先算 ROI。',look:L({skin:SKINS[4],hair:'curly',hairColor:'#1b1716',outfit:'shirt',top:'#f4f4f1',accent:'#2b55c9',bottom:'#3b4a66',shoes:'#6d4a32'})},
+      {id:'a8',name:'阿宝',role:'video',prompt:'短剧和宣传片制作，熟悉开源视频模型，能省就省。',look:L({skin:SKINS[2],hair:'pony',hairColor:'#1b1716',outfit:'mandarin',top:'#2a2f35',accent:'#c9a04f',bottom:'#2a2f35'})},
+      {id:'a9',name:'小陈',role:'intern',prompt:'好学，什么都想试，不确定就问项目经理。',look:L({skin:SKINS[0],hair:'long',hairColor:'#3b2a20',outfit:'hoodie',top:'#e7b9c4',accent:'#f4f4f1',bottomType:'shorts',bottom:'#3b4a66',shoes:'#f2f2ef',glasses:true})}],
+    decisions:[],reports:[],tasks:[],log:[],pmLog:[],vault:JSON.parse(JSON.stringify(VAULT0)),models:JSON.parse(JSON.stringify(MODELS0)),
+    plugins:JSON.parse(JSON.stringify(PLUGINS0)),selfOnline:true,cost:{cloud:6.42,self:1.18},budget:{cap:CAP_MONTH,used:1386.5,warned:false},anomFixed:1};
+  S.agents.forEach(a=>a.memory=[]);
+}
+function bootState(remote){
+  const saved=remote||load();
+  if(saved){S=saved;S.clock=Math.max(9*60,Math.min(S.clock,18*60-1));['decisions','reports','tasks','log','pmLog'].forEach(k=>S[k]=S[k]||[]);S.models=S.models||JSON.parse(JSON.stringify(MODELS0));S.vault=S.vault||JSON.parse(JSON.stringify(VAULT0));S.plugins=S.plugins||JSON.parse(JSON.stringify(PLUGINS0));
+    S.tasks.forEach(T=>T.subs.forEach(s=>{if(s.status==='doing')s.status='todo';}));}
+  else seed();
+  S.buildings.forEach(b=>{if(!STYLES[b.style])b.style=b.style==='brick'?'loft':'modern';if(b.slot>7||b.slot==null)b.slot=0;});
+  rebuildFloors();
+  S.agents.forEach(a=>{spawn(a);});
+  applyBuildings();
+  if(!saved){
+    const T={id:'t1',title:'做一支 30 秒新品宣传短片',desc:'用于下周上线，竖屏，配中英文字幕。',prio:'重要',status:'active',day:1,at:'09:20',cost:18.6,subs:[]};
+    const sub=(dept,id,name,status,left)=>({id:'s'+uid(),dept,title:`${T.title} · ${DEPT_WORK[dept]}`,agentId:id,agentName:name,status,left,task:'t1'});
+    T.subs=[sub('产品','a3','Aisha','done',0),sub('设计','a6','Mei','todo',60),sub('制作','a8','阿宝','todo',140),sub('市场','a7','Ravi','todo',90)];
+    S.tasks.push(T);
+    S.tasks.push({id:'t0',title:'整理官网常见问题',desc:'',prio:'普通',status:'done',day:1,at:'09:05',cost:0.42,subs:[{id:'s0',dept:'产品',title:'整理官网常见问题 · 需求拆解',agentId:'a3',agentName:'Aisha',status:'done',left:0,task:'t0'}],conclusion:'产品（Aisha）已完成 32 条常见问题整理，并按支付、账号、配送分类。用时约 0.9 小时，模型花费 RM 0.42。'});
+    S.reports.push({id:'r0',day:1,at:'10:02',from:'Nora',title:'任务完成：整理官网常见问题',text:'产品（Aisha）已完成 32 条常见问题整理，并按支付、账号、配送分类。全部使用自建模型，花费 RM 0.42。'});
+    const jay=live.a5;const s=bossSpot();
+    const d={id:'d0',agentId:'a5',agentName:'Jay',role:'工程师',title:'部署 v1.4.2 到生产环境',detail:'包含 3 个修复：登录超时、推送重复、导出乱码。测试环境已跑通全部用例。',opts:[['批准','yes'],['驳回','no']],status:'pending',at:'10:05',day:1,rev:'Nora（项目经理）初审：阿杰已完成代码评审，风险可控，建议批准'};
+    S.decisions.push(d);if(s){const desk=deskOf(jay);if(desk)desk.owner='a5';placeAt(jay,s);jay.act='report';jay.task='等待 Dave 审批：'+d.title;jay.timer=60;jay.decId='d0';}
+    const mei=live.a6;const cf=allFloors().find(F=>F.type==='cafe');if(cf){const sp=cf.spots.lounge[1];placeAt(mei,sp);mei.act='break';mei.task='点咖啡';mei.timer=12;}
+    S.pmLog.push({t:'09:40',d:1,k:'approve',txt:'批准 阿宝 调用 Wan 视频（自建 GPU）：新品宣传短片分镜预览'},{t:'09:52',d:1,k:'downgrade',txt:'小陈 申请 Claude Opus（整理资料），不属于项目任务，降级为 Qwen 开源（自建）'},
+      {t:'09:58',d:1,k:'anomaly',txt:'检测到 Ravi 15 分钟内调用 11 次（疑似重试循环），已暂停其模型权限 30 分钟并排查'},{t:'10:01',d:1,k:'anomaly',txt:'Ravi 异常已解决：广告数据接口超时导致重复重试，已加退避上限，恢复调用'},
+      {t:'10:05',d:1,k:'decide',txt:'代为决定「升级 Node.js 到 20 LTS」→ 批准（Jay 提交）'});
+    S.log=[{t:'09:00',txt:'第 1 天开始，9 名 Agent 到岗（示例团队）'},{t:'09:20',txt:'你发布了任务「做一支 30 秒新品宣传短片」',hl:true},{t:'09:22',txt:'Nora 拆解任务：产品·Aisha、设计·Mei、制作·阿宝、市场·Ravi'},{t:'10:05',txt:'Jay 提交最终审批「部署 v1.4.2 到生产环境」',hl:true}];
+    S.agents.find(a=>a.id==='a2').memory=[{d:1,t:'09:22',txt:'接到 Dave 发布的任务「做一支 30 秒新品宣传短片」'},{d:1,t:'09:58',txt:'处理 Ravi 的异常调用'}];
+    S.agents.find(a=>a.id==='a3').memory=[{d:1,t:'10:02',txt:'完成任务：整理官网常见问题'},{d:1,t:'10:10',txt:'完成任务：做一支 30 秒新品宣传短片 · 需求拆解'}];
+  }
+}
+function resize(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w<820?50:36;camera.updateProjectionMatrix();}
+addEventListener('resize',resize);
+async function boot(){
+  await ensureLogin();
+  const remote=await loadRemote();
+  bootState(remote);if(authed&&!remote)saveRemote();
+  if(authed)refreshSecretStatus();buildWorld();resize();
+  overview();if(camAnim){camera.position.copy(camAnim.p1);controls.target.copy(camAnim.t1);camAnim=null;}
+  renderNav();renderDecisions();
+  requestAnimationFrame(t=>{last=t;frame(t);});
+}
+Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(r=>setTimeout(r,1500))]).then(boot);
+})();
+</script>
+
+</body></html>
