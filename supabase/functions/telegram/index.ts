@@ -136,7 +136,15 @@ async function onUpdate(u: any, c: Cfg) {
   const o = row.payload?.opts?.[Number(idx)];
   if (!o) { await answer("选项无效"); return; }
   if (!(await closeDecision(row, c, o[0], o[1], "Telegram"))) { await answer("已经处理过了"); return; }
-  await admin.from("telegram_actions").insert({ decision_id: ref, choice: o[0], kind: o[1] });
+  // real (backend) approvals live in the decisions table; the runtime picks them up
+  const { data: real } = await admin.from("decisions").update({
+    status: o[1] === "yes" ? "approved" : "rejected", choice: o[0], decided_at: new Date().toISOString(),
+  }).eq("id", ref).eq("status", "pending").select("id");
+  if (real?.length) {
+    fetch(`${SB_URL}/functions/v1/runtime`, { method: "POST", headers: { "x-admin-key": (await secret("tg_admin")) || "" } }).catch(() => {});
+  } else {
+    await admin.from("telegram_actions").insert({ decision_id: ref, choice: o[0], kind: o[1] });
+  }
   await answer(`已记录：${o[0]}`);
 }
 
