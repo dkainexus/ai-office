@@ -1134,7 +1134,7 @@ function bossSpot(){for(const F of allFloors())if(F.type==='exec'){const s=freeI
 function addDecision(o){
   const d=Object.assign({id:'d'+uid(),status:'pending',at:hhmm(S.clock),day:S.day,opts:[['批准','yes'],['驳回','no']]},o);
   S.decisions.push(d);addLog(`${d.agentName} 提交最终审批「${d.title}」`,true);
-  toast(`<b>${esc(d.agentName)}</b> 提交了一项需要你最终审批的事`);renderDecisions();save();return d;
+  toast(`<b>${esc(d.agentName)}</b> 提交了一项需要你最终审批的事`);renderDecisions();save();tgDecision(d);return d;
 }
 function raiseDecision(r,fromMeeting){
   const tpl=pick(roleOf(r.a).dec);const title=(fromMeeting?'会议结论：':'')+fill(tpl[0]),detail=fill(tpl[1]),opts=tpl[2]||[['批准','yes'],['驳回','no']],major=!!tpl[3];
@@ -1158,6 +1158,7 @@ function resolve(id,choice,kind,note){
   const d=S.decisions.find(x=>x.id===id);if(!d||d.status!=='pending')return;
   d.status=kind==='yes'?'approved':'rejected';d.choice=choice;d.note=note||'';d.doneAt=hhmm(S.clock);
   addLog(`你对「${d.title}」的决定：${choice}${note?'（'+note+'）':''}`,true);
+  if(note!=='来自 Telegram'&&d.tgRef)tgCall('decided',{ref:d.tgRef,choice,kind});
   const r=live[d.agentId];
   if(r){remember(r.a,`Dave ${kind==='yes'?'批准':'驳回'}了「${d.title}」${note?'，留言：'+note:''}`);
     r.decId=null;r.follow=kind==='yes'?'执行：'+d.title.replace(/^(会议结论|最终审批)：/,''):'根据 Dave 的反馈调整';
@@ -1212,7 +1213,7 @@ function concludeTask(T){
   const needsFinal=T.prio!=='普通'||/上线|发布|投放|付款|签约|部署|采购/.test(T.title+T.desc);
   if(needsFinal){T.status='review';
     addDecision({agentId:pm?pm.a.id:'',agentName:pm?pm.a.name:'系统',role:'项目经理',title:`最终审批：${T.title}`,detail:T.conclusion,taskId:T.id,opts:[['通过，执行','yes'],['打回重做','no']],rev:'各部门已完成，项目经理已验收'});}
-  else{T.status='done';S.reports.push({id:'r'+uid(),day:S.day,at:hhmm(S.clock),from:pm?pm.a.name:'系统',title:`任务完成：${T.title}`,text:T.conclusion});}
+  else{T.status='done';const rp={id:'r'+uid(),day:S.day,at:hhmm(S.clock),from:pm?pm.a.name:'系统',title:`任务完成：${T.title}`,text:T.conclusion};S.reports.push(rp);tgReport(rp);}
   if(pm)remember(pm.a,`验收「${T.title}」`);
   renderDecisions();
 }
@@ -1268,6 +1269,7 @@ function dailyReport(){
   const tot=S.cost.self+S.cost.cloud;
   if(pm)S.reports.push({id:'r'+uid(),day:S.day,at:'18:00',from:pm.a.name,title:`第 ${S.day} 天日报`,
     text:`进行中任务 ${S.tasks.filter(t=>t.status==='active').length} 个，已完成 ${S.tasks.filter(t=>t.status==='done').length} 个。模型花费 ${rm(tot)}（自建占 ${selfShare()}%），本月已用 ${rm(S.budget.used)} / ${rm(S.budget.cap)}。今日异常 ${S.anomFixed||0} 起，均已自行处理。`});
+  if(pm)tgDaily(S.reports[S.reports.length-1]);
   S.cost={cloud:0,self:0};S.anomFixed=0;
   if(S.reports.length>40)S.reports.splice(0,S.reports.length-40);
   renderDecisions();
@@ -1539,12 +1541,33 @@ function renderBack(force){
     <button class="btn ghost" type="submit">登记到金库</button></form>`;
 }
 async function refreshSecretStatus(){if(!sbc||!authed)return;try{const {data}=await sbc.rpc('secret_status');const ok=new Set((data||[]).filter(x=>x.configured).map(x=>x.item_id));
-  S.plugins.forEach(pl=>{if(pl.kind==='bot'&&pl.fields.every(([k])=>ok.has(`${pl.id}_${k}`)))pl.status='已配置';});renderBack(true);}catch(e){}}
+  S.plugins.forEach(pl=>{if(pl.kind==='bot'&&pl.fields.every(([k])=>ok.has(`${pl.id}_${k}`)))pl.status='已配置';});
+  tgReady=ok.has('p1_token')&&ok.has('p1_chat');renderBack(true);if(tgReady)tgSync();}catch(e){}}
+/* ---------- Telegram bridge ---------- */
+let tgReady=false,tgPollT=null;
+async function tgCall(action,body){if(!sbc||!authed||!tgReady)return null;
+  try{const {data,error}=await sbc.functions.invoke('telegram',{body:Object.assign({action},body||{})});if(error)throw error;return data;}
+  catch(e){console.warn('telegram',action,e&&e.message);return null;}}
+const tgRef=d=>{if(!d.tgRef){d.tgRef=d.id+'.'+Date.now().toString(36);save();}return d.tgRef;};
+function tgDecision(d){if(d&&d.status==='pending')tgCall('decision',{ref:tgRef(d),title:d.title,from:d.agentName,role:d.role,detail:d.detail,rev:d.rev,opts:d.opts});}
+function tgReport(r){if(r)tgCall('report',{ref:r.id+'.'+Date.now().toString(36),title:r.title,from:r.from,text:r.text});}
+function tgDaily(r){if(!r)return;const day=new Date(Date.now()+8*3600e3).toISOString().slice(0,10);
+  tgCall('daily',{ref:'daily-'+day,title:`每日简报 · ${day}`,from:r.from,text:r.text});}
+async function tgApply(){if(!sbc||!authed||!tgReady)return;
+  try{const {data}=await sbc.from('telegram_actions').select('id,decision_id,choice,kind').is('applied_at',null).order('id');
+    for(const a of data||[]){const d=S.decisions.find(x=>x.tgRef===a.decision_id);
+      if(d&&d.status==='pending'){resolve(d.id,a.choice,a.kind,'来自 Telegram');toast(`已按你在 Telegram 的决定处理：<b>${esc(d.title)}</b>`);}
+      await sbc.from('telegram_actions').update({applied_at:new Date().toISOString()}).eq('id',a.id);}
+  }catch(e){console.warn('telegram apply',e&&e.message);}}
+function tgSync(){S.decisions.filter(d=>d.status==='pending').forEach(tgDecision);tgApply();
+  if(!tgPollT)tgPollT=setInterval(()=>{if(!document.hidden)tgApply();},10000);}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)tgApply();});
 $('#pane-back').addEventListener('click',async e=>{
   const ps=e.target.closest('[data-plsave]');if(ps){const pl=S.plugins.find(x=>x.id===ps.dataset.plsave);if(!pl||!sbc||!authed)return;
     const vals=pl.fields.map(([k,l])=>[k,l,$(`#pl-${pl.id}-${k}`).value.trim()]).filter(x=>x[2]);if(!vals.length){toast('请先填写内容');return;}
     ps.disabled=true;try{for(const [k,l,v] of vals){const {error}=await sbc.rpc('set_secret',{p_item_id:`${pl.id}_${k}`,p_name:`${pl.name} · ${l}`,p_kind:pl.kind,p_value:v});if(error)throw error;}
-      addLog(`${pl.name} 的密钥已存进金库`,true);toast('已存进金库');await refreshSecretStatus();saveRemote();}catch(err){toast('保存失败：'+(err.message||'请稍后再试'));ps.disabled=false;}return;}
+      addLog(`${pl.name} 的密钥已存进金库`,true);toast('已存进金库');await refreshSecretStatus();saveRemote();
+      if(pl.id==='p1'&&tgReady){await tgCall('setup');const t=await tgCall('test');toast(t&&t.ok?'已发送测试消息到 Telegram':'密钥已保存，但测试消息没发出去，请检查 Token 和 Chat ID');}}catch(err){toast('保存失败：'+(err.message||'请稍后再试'));ps.disabled=false;}return;}
   if(e.target.id==='srvTg'){S.selfOnline=!S.selfOnline;addLog(S.selfOnline?'自建 GPU 服务器恢复在线':'自建 GPU 服务器离线，开源模型请求切到云端备用',true);renderBack(true);save();return;}
   const m=e.target.closest('[data-mtg]');if(m){const x=modelById(m.dataset.mtg);x.on=!x.on;renderBack(true);save();return;}
   const d=e.target.closest('[data-vdel]');if(d){const v=S.vault.find(x=>x.id===d.dataset.vdel);S.vault=S.vault.filter(x=>x!==v);addLog(`你从金库移除了「${v.name}」`);renderBack(true);save();}
