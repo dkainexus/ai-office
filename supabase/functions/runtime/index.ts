@@ -188,7 +188,10 @@ async function plan(T: any, st: any, keys: Keys) {
   });
   await db.from("subtasks").insert(rows);
   const needsFinal = !!p.needs_final || T.priority !== "普通" || FINAL_RE.test(`${T.title} ${T.description || ""}`);
-  await db.from("tasks").update({ status: "active", needs_final: needsFinal, plan_note: cut(p.note || "", 300), updated_at: new Date().toISOString() }).eq("id", T.id);
+  await db.from("tasks").update({
+    status: "active", needs_final: needsFinal, plan_note: cut(p.note || "", 300), updated_at: new Date().toISOString(),
+    ...(T.version === 1 && !T.rework_note && +T.cost === 0 ? { budget_rm: +(st.task_budget_rm || 20) } : {}),
+  }).eq("id", T.id);
   const names = rows.map((r: any) => `${r.seq}. ${r.title} → ${as.find((a) => a.id === r.agent_id)?.name}`).join("\n");
   await say(T.id, pm?.id || null, `拆解「${T.title}」：${p.note || ""}\n${names}`, c.model);
   await remember(pm?.id, `拆解 Dave 的任务「${T.title}」，分给：${rows.map((r: any) => as.find((a) => a.id === r.agent_id)?.name).join("、")}`);
@@ -206,8 +209,8 @@ async function execute(s: any, st: any, keys: Keys) {
     await addDecision({
       id: `budget-${T.id}-${Math.round(+T.budget_rm)}`, kind: "budget", agent: pm, taskId: T.id,
       title: `任务「${cut(T.title, 30)}」已用到预算 RM ${(+T.budget_rm).toFixed(2)}`,
-      detail: `已花费 RM ${(+T.cost).toFixed(2)}，还有步骤没做完。继续的话追加 RM ${st.task_budget_rm || 20}。`,
-      review: "项目经理已暂停这个任务，等你决定", options: [[`追加 RM ${st.task_budget_rm || 20} 继续`, "yes"], ["停止任务", "no"]],
+      detail: `已花费 RM ${(+T.cost).toFixed(2)}，还有步骤没做完。继续的话追加 RM ${st.task_topup_rm || 20}。`,
+      review: "项目经理已暂停这个任务，等你决定", options: [[`追加 RM ${st.task_topup_rm || 20} 继续`, "yes"], ["停止任务", "no"]],
     });
     return;
   }
@@ -245,6 +248,20 @@ async function execute(s: any, st: any, keys: Keys) {
   }
 }
 
+// ---------- Drive ----------
+async function saveToDrive(taskId: string): Promise<string | null> {
+  if (!(await secret("p2_refresh"))) return null;
+  try {
+    const r = await fetch(`${SB_URL}/functions/v1/gdrive`, {
+      method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": (await secret("tg_admin")) || "" },
+      body: JSON.stringify({ action: "save_task", task_id: taskId }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { console.error("drive", j.error); return null; }
+    return j.url || null;
+  } catch (e) { console.error("drive", (e as Error).message); return null; }
+}
+
 // ---------- 3. review & conclude ----------
 async function conclude(T: any, st: any, keys: Keys) {
   const as = await agents(); const pm = pickPM(as);
@@ -257,15 +274,18 @@ async function conclude(T: any, st: any, keys: Keys) {
   const conclusion = c.text;
   await say(T.id, pm?.id || null, `验收结论：${conclusion}`, c.model);
   await remember(pm?.id, `验收「${T.title}」：${cut(conclusion, 160)}`);
+  await db.from("tasks").update({ conclusion }).eq("id", T.id);
+  const drive = await saveToDrive(T.id);
+  const where = drive ? `完整交付已存进 Google Drive：\n${drive}` : "完整交付在 AI Office 任务台。";
   if (T.needs_final) {
     await db.from("tasks").update({ status: "review", conclusion }).eq("id", T.id);
     await addDecision({
-      kind: "final", agent: pm, taskId: T.id, title: `最终审批：${cut(T.title, 40)}`, detail: conclusion,
-      review: "各成员已交付，项目经理已验收。完整交付在 AI Office 任务台。", options: [["通过，执行", "yes"], ["打回重做", "no"]],
+      kind: "final", agent: pm, taskId: T.id, title: `最终审批：${cut(T.title, 40)}`, detail: `${conclusion}\n\n${where}`,
+      review: "各成员已交付，项目经理已验收", options: [["通过，执行", "yes"], ["打回重做", "no"]],
     });
   } else {
     await db.from("tasks").update({ status: "done", conclusion }).eq("id", T.id);
-    await tg("report", { ref: `done-${T.id}-${Date.now()}`, title: `任务完成：${T.title}`, from: pm?.name || "系统", text: `${conclusion}\n\n花费 RM ${(+T.cost).toFixed(2)}。完整交付在 AI Office 任务台。` });
+    await tg("report", { ref: `done-${T.id}-${Date.now()}`, title: `任务完成：${T.title}`, from: pm?.name || "系统", text: `${conclusion}\n\n花费 RM ${(+T.cost).toFixed(2)}。${where}` });
   }
 }
 
@@ -282,8 +302,9 @@ async function applyDecisions(st: any) {
       } else {
         const { data: T } = await db.from("tasks").select("conclusion").eq("id", d.task_id).single();
         await db.from("subtasks").delete().eq("task_id", d.task_id);
+        const { data: V } = await db.from("tasks").select("version").eq("id", d.task_id).single();
         await db.from("tasks").update({
-          status: "planning", conclusion: null,
+          status: "planning", conclusion: null, version: (V?.version || 1) + 1,
           rework_note: cut(`${d.note || "没写原因"}（上一版结论：${T?.conclusion || ""}）`, 800),
         }).eq("id", d.task_id);
         await remember(pm?.id, `Dave 打回「${d.title}」：${d.note || "没写原因"}`);
@@ -291,12 +312,16 @@ async function applyDecisions(st: any) {
     } else if (d.kind === "budget" && d.task_id) {
       if (yes) {
         const { data: T } = await db.from("tasks").select("budget_rm").eq("id", d.task_id).single();
-        await db.from("tasks").update({ status: "active", budget_rm: +(T?.budget_rm || 0) + (st.task_budget_rm || 20) }).eq("id", d.task_id);
+        const add = +(st.task_topup_rm || 20), before = +(T?.budget_rm || 0);
+        await db.from("tasks").update({ status: "active", budget_rm: before + add }).eq("id", d.task_id);
+        await db.from("budget_log").insert({ kind: "topup_task", amount: add, before_rm: before, after_rm: before + add, task_id: d.task_id, decision_id: d.id, note: `Dave 批准追加：${d.title}` });
       } else {
         await db.from("tasks").update({ status: "stopped" }).eq("id", d.task_id);
       }
     } else if (d.kind === "monthly" && yes) {
-      st.monthly_cap_rm = (+st.monthly_cap_rm || 0) + 1000;
+      const add = +(st.month_topup_rm || 1000), before = +st.monthly_cap_rm || 0;
+      st.monthly_cap_rm = before + add;
+      await db.from("budget_log").insert({ kind: "topup_month", amount: add, before_rm: before, after_rm: before + add, decision_id: d.id, note: "Dave 批准本月追加" });
       await db.from("runtime_settings").update({ data: st, updated_at: new Date().toISOString() }).eq("id", 1);
     }
     await db.from("decisions").update({ handled: true }).eq("id", d.id);
@@ -344,7 +369,7 @@ async function tick() {
       await addDecision({
         id: `month-${month}-${Math.round(+st.monthly_cap_rm)}`, kind: "monthly", agent: pickPM(await agents()),
         title: `本月模型预算 RM ${(+st.monthly_cap_rm).toFixed(0)} 已用完`, detail: `本月已花 RM ${spent.toFixed(2)}，所有任务已暂停。`,
-        review: "项目经理已暂停全部模型调用", options: [["本月上限加 RM 1000", "yes"], ["暂停到下个月", "no"]],
+        review: "项目经理已暂停全部模型调用", options: [[`本月上限加 RM ${st.month_topup_rm || 1000}`, "yes"], ["暂停到下个月", "no"]],
       });
       return { idle: "monthly cap" };
     }

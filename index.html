@@ -233,6 +233,9 @@ details.done .card{opacity:.85;margin-top:8px}
 .lerr{font-size:12.5px;color:var(--bad)}
 .lcard .btn{justify-content:center;padding:11px}
 .out{background:var(--paper);color:var(--ink-2);font-weight:500}
+.row2{display:flex;gap:8px}.row2 label{flex:1;display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink-2)}
+.bud input{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:14px var(--f-body);background:var(--paper);color:var(--ink);width:100%;box-sizing:border-box}
+.dlink{display:inline-block;margin-top:6px;font-size:12.5px;font-weight:600;color:var(--accent,#2b55c9)}
 .deliv{margin:2px 0 6px;font-size:12.5px}.deliv summary{cursor:pointer;color:var(--ink-2)}
 .deliv pre{white-space:pre-wrap;word-break:break-word;max-height:340px;overflow:auto;background:rgba(0,0,0,.04);border-radius:8px;padding:10px;margin:6px 0 0;font:12.5px/1.55 var(--f-body)}
 .toast{position:absolute;left:50%;top:66px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:999px;font-size:13px;z-index:30;box-shadow:0 6px 20px rgba(0,0,0,.25);transition:opacity .3s;max-width:calc(100% - 32px);text-align:center}
@@ -485,7 +488,7 @@ const PLUGINS0=[
   {id:'p1',name:'Telegram 机器人',kind:'bot',desc:'审批推送、每日简报、结论通知，消息里直接点「批准 / 驳回」',status:'待配置',fields:[['token','Bot Token'],['chat','你的 Chat ID']]},
   {id:'p_claude',name:'Claude（Anthropic）',kind:'apikey',desc:'项目经理拆解、验收，以及技术类工作优先用 Claude',status:'待配置',fields:[['key','API Key']]},
   {id:'p_openai',name:'GPT（OpenAI）',kind:'apikey',desc:'文案、市场、日常类工作优先用 GPT；任一家出错会自动换另一家',status:'待配置',fields:[['key','API Key']]},
-  {id:'p2',name:'Google Drive',kind:'oauth',desc:'交付文件自动存进你的 Drive，按项目整理好文件夹，发链接给你',status:'待授权'},
+  {id:'p2',name:'Google Drive',kind:'oauth',desc:'交付文件自动存进你的 Drive：DK Global Group · AI Office / 任务 年-月 / 日期 任务名，链接会发到 Telegram',status:'待配置',fields:[['client_id','Client ID'],['client_secret','Client secret']]},
   {id:'p3',name:'Facebook 主页',kind:'oauth',desc:'市场部发帖、看数据、回复留言',status:'待授权',by:'Ravi（市场专员）申请：投放和发帖需要'}];
 
 /* =================== THREE =================== */
@@ -1501,7 +1504,7 @@ function renderTasks(force){
       <div class="bar"><i style="width:${T.status==='done'?100:prog}%"></i></div>
       ${T.subs.length?`<div class="subs">${T.subs.map(s=>`<div><span class="d">${esc(s.dept)}</span><span>${esc(s.agentName)}</span><span class="s ${s.status}">${{todo:'待开始',doing:'进行中',done:'完成',failed:'失败'}[s.status]||s.status}</span></div>${s.output?`<details class="deliv" data-sid="${s.id}"><summary>${esc(s.title)} · 查看交付${s.model?` · ${esc(s.model)}`:''}</summary><pre>${esc(s.output)}</pre></details>`:''}`).join('')}</div>`:''}
       ${T.real&&T.note&&T.status!=='done'?`<div class="meta">${esc(T.note)}</div>`:''}
-      <div class="meta">已花费 ${rm(T.cost)}</div>${T.conclusion?`<div class="rev">${esc(T.conclusion)}</div>`:''}</div>`;}).join(''):'<div class="empty">还没有任务。</div>'}`;
+      <div class="meta">已花费 ${rm(T.cost)}</div>${T.conclusion?`<div class="rev">${esc(T.conclusion)}</div>`:''}${T.drive?`<a class="dlink" href="${esc(T.drive)}" target="_blank" rel="noopener">打开 Google Drive 文件夹 ↗</a>`:''}</div>`;}).join(''):'<div class="empty">还没有任务。</div>'}`;
   openIds.forEach(id=>{const e=document.querySelector(`#pane-task details[data-sid="${id}"]`);if(e)e.open=true;});
   $('#tForm').onsubmit=e=>{e.preventDefault();const t=$('#tTitle').value.trim();if(!t)return;publishTask(t,$('#tDesc').value.trim(),$('#tPrio').value);$('#tTitle').value='';$('#tDesc').value='';document.activeElement.blur();renderTasks(true);toast('任务已交给项目经理');};
 }
@@ -1527,7 +1530,7 @@ function busy(id){const a=document.activeElement;return a&&a!==document.body&&$(
 function renderBack(force){
   if($('#pane-back').hidden||(!force&&busy('#pane-back')))return;
   const tot=S.cost.self+S.cost.cloud;const roleOpts=Object.entries(ROLES).map(([k,r])=>`<label><input type="checkbox" value="${k}" name="vr">${r.label}</label>`).join('');
-  $('#pane-back').innerHTML=`
+  $('#pane-back').innerHTML=`${budgetHTML()}
   <div class="server"><div><b>自建 GPU 服务器</b><br><span>${S.selfOnline?'在线 · 开源文本 / 图像 / 视频模型优先':'离线 · 请求已自动切到云端备用'}</span></div><button class="tg ${S.selfOnline?'on':''}" id="srvTg" aria-label="切换自建服务器在线状态"></button></div>
   <div class="kpis"><div class="kpi"><span>今日花费</span><b>${rm(tot)}</b></div><div class="kpi"><span>自建占比</span><b>${selfShare()}%</b></div><div class="kpi"><span>本月预算</span><b>${Math.round(S.budget.used/S.budget.cap*100)}%</b></div></div>
   <div class="h">模型（费用为估算，可在后台配置）</div>
@@ -1539,7 +1542,7 @@ function renderBack(force){
   <div class="h">插件与机器人</div>
   <div class="rule">${authed?'<b>后台已连接。</b>这里填的密钥会直接存进后台金库，保存后页面和 Agent 都看不到明文，只能替换。':'<b>后台未连接。</b>登录后才能保存密钥。'}需要登录授权的插件，点「去授权」用你的账号登录一次即可。Agent 发现缺少某个平台的插件时，会自动开发并出现在这里，等你登录授权。</div>
   ${S.plugins.map(pl=>`<div class="vitem"><div class="vt"><b>${esc(pl.name)}</b><span class="lock">${esc(pl.status)}</span></div><div class="meta">${esc(pl.desc)}</div>${pl.by?`<div class="meta">${esc(pl.by)}</div>`:''}
-    ${pl.fields?pl.fields.map(([k,l])=>`<input type="password" class="pin" id="pl-${pl.id}-${k}" placeholder="${l}${pl.status==='已配置'?'（已保存，输入新值可替换）':''}" aria-label="${l}" autocomplete="off" ${authed?'':'disabled'}>`).join('')+`<button class="btn ghost sm" data-plsave="${pl.id}" ${authed?'':'disabled'}>保存到金库</button>`:'<button class="btn ghost sm" disabled>去授权（下一步接入）</button>'}</div>`).join('')}
+    ${pl.fields?pl.fields.map(([k,l])=>`<input type="password" class="pin" id="pl-${pl.id}-${k}" placeholder="${l}${pl.status==='已配置'||pl.status==='已授权'?'（已保存，输入新值可替换）':''}" aria-label="${l}" autocomplete="off" ${authed?'':'disabled'}>`).join('')+`<button class="btn ghost sm" data-plsave="${pl.id}" ${authed?'':'disabled'}>保存到金库</button>`+(pl.kind==='oauth'?`<button class="btn primary sm" data-plauth="${pl.id}" ${authed&&(pl.status==='已配置'||pl.status==='已授权')?'':'disabled'}>${pl.status==='已授权'?'重新授权':'去授权（用你的 Google 账号登录一次）'}</button>`:''):'<button class="btn ghost sm" disabled>去授权（下一步接入）</button>'}</div>`).join('')}
   <div class="h">金库</div>
   <div class="rule">密钥只存在后台金库。Agent 只能请求调用，由后台代为注入凭证，Agent 看不到明文。标记为“每次需批准”的凭证，必须在你批准相关事项后才会使用。这个页面不保存任何真实密钥。</div>
   ${S.vault.map(v=>`<div class="vitem"><div class="vt"><b>${esc(v.name)}</b><span class="mask">••••••••</span><button class="del" data-vdel="${v.id}">移除</button></div>
@@ -1553,7 +1556,8 @@ function renderBack(force){
     <button class="btn ghost" type="submit">登记到金库</button></form>`;
 }
 async function refreshSecretStatus(){if(!sbc||!authed)return;try{const {data}=await sbc.rpc('secret_status');const ok=new Set((data||[]).filter(x=>x.configured).map(x=>x.item_id));
-  S.plugins.forEach(pl=>{if(pl.fields&&pl.fields.every(([k])=>ok.has(`${pl.id}_${k}`)))pl.status='已配置';});
+  S.plugins.forEach(pl=>{if(pl.fields&&pl.fields.every(([k])=>ok.has(`${pl.id}_${k}`)))pl.status=ok.has(`${pl.id}_refresh`)?'已授权':'已配置';});
+  loadBudget();
   aiReady=ok.has('p_claude_key')||ok.has('p_openai_key');renderTasks();
   tgReady=ok.has('p1_token')&&ok.has('p1_chat');renderBack(true);if(tgReady)tgSync();}catch(e){}}
 /* ---------- Agent runtime bridge (Supabase backend does the real work) ---------- */
@@ -1580,7 +1584,7 @@ async function rtSync(){if(!REAL()||rtBusy||document.hidden)return;rtBusy=true;
       if(!T){T={id:t.id,title:t.title,desc:t.description||'',prio:t.priority,day:S.day,at:hm(t.created_at),subs:[],cost:0};S.tasks.push(T);changed=true;}
       const before=JSON.stringify([T.status,T.conclusion,T.subs.map(s=>[s.id,s.status])]);
       const wasDone=T.status==='done';
-      Object.assign(T,{real:true,status:t.status,cost:+t.cost||0,conclusion:t.conclusion||'',note:t.plan_note||''});
+      Object.assign(T,{real:true,status:t.status,cost:+t.cost||0,conclusion:t.conclusion||'',note:t.plan_note||'',drive:t.drive_folder_url||''});
       T.subs=(ss||[]).filter(s=>s.task_id===t.id).map(s=>{const a=S.agents.find(x=>x.id===s.agent_id);
         return{id:s.id,dept:s.dept,title:s.title,agentId:s.agent_id,agentName:a?a.name:'—',status:s.status,output:s.output||'',model:s.model||'',err:s.error||'',seq:s.seq,task:t.id,real:true};});
       if(before!==JSON.stringify([T.status,T.conclusion,T.subs.map(s=>[s.id,s.status])])){changed=true;
@@ -1600,6 +1604,27 @@ async function rtSync(){if(!REAL()||rtBusy||document.hidden)return;rtBusy=true;
   }catch(e){console.warn('sync',e&&e.message);}
   rtBusy=false;}
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)rtSync();});
+let BUD=null;
+async function loadBudget(){if(!REAL())return;
+  try{const [st,m,d,lg]=await Promise.all([sbc.from('runtime_settings').select('data').eq('id',1).maybeSingle(),sbc.rpc('rt_month_spend'),sbc.rpc('rt_day_spend'),
+      sbc.from('budget_log').select('*').order('created_at',{ascending:false}).limit(30)]);
+    BUD={st:(st.data&&st.data.data)||{},month:+m.data||0,day:+d.data||0,log:lg.data||[]};renderBack();}catch(e){console.warn('budget',e&&e.message);}}
+function budgetHTML(){if(!REAL())return '';if(!BUD)return '<div class="h">预算</div><div class="empty">载入中…</div>';
+  const st=BUD.st,cap=+st.monthly_cap_rm||0,pct=cap?Math.round(BUD.month/cap*100):0;
+  const K={set_monthly:'改月上限',set_task:'改单任务上限',set_task_topup:'改单任务追加额',set_month_topup:'改月追加额',topup_task:'任务追加',topup_month:'月度追加'};
+  const f=(id,label,v)=>`<label>${label}<input type="number" id="${id}" min="1" step="1" value="${+v||''}" required></label>`;
+  return `<div class="h">预算（真实花费）</div>
+  <div class="kpis"><div class="kpi"><span>今日</span><b>RM ${BUD.day.toFixed(2)}</b></div><div class="kpi"><span>本月</span><b>RM ${BUD.month.toFixed(2)}</b></div><div class="kpi"><span>月上限已用</span><b>${pct}%</b></div></div>
+  <form class="pform bud" id="budForm"><div class="row2">${f('bMonth','本月上限 RM',st.monthly_cap_rm)}${f('bTask','单任务上限 RM',st.task_budget_rm)}</div>
+    <div class="row2">${f('bTaskTop','单任务每次追加 RM',st.task_topup_rm)}${f('bMonthTop','本月每次追加 RM',st.month_topup_rm)}</div>
+    <button class="btn primary sm" type="submit">保存预算</button>
+    <span class="meta">用到上限时项目经理会先暂停，再发审批给你；每次追加都要你批准。所有改动和追加都记在下面。</span></form>
+  <div class="h">预算记录</div>
+  <div class="pmlog">${BUD.log.map(l=>`<div><time>${hm(l.created_at)}</time><span class="k ${/topup/.test(l.kind)?'approve':'decide'}">${K[l.kind]||l.kind}</span><span>${new Date(l.created_at).toLocaleDateString('zh-CN')} · RM ${(+l.before_rm).toFixed(0)} → RM ${(+l.after_rm).toFixed(0)}${l.note?' · '+esc(l.note):''}</span></div>`).join('')||'<div class="empty">还没有记录</div>'}</div>`;}
+$('#pane-back').addEventListener('submit',async e=>{if(e.target.id!=='budForm')return;e.preventDefault();
+  const v=id=>+$('#'+id).value;const b=e.target.querySelector('button');b.disabled=true;
+  const {error}=await sbc.rpc('set_budget',{p_month:v('bMonth'),p_task:v('bTask'),p_task_topup:v('bTaskTop'),p_month_topup:v('bMonthTop')});
+  b.disabled=false;if(error){toast('保存失败：'+esc(error.message));return;}document.activeElement.blur();toast('预算已保存');loadBudget();});
 /* ---------- Telegram bridge ---------- */
 let tgReady=false,tgPollT=null;
 async function tgCall(action,body){if(!sbc||!authed||!tgReady)return null;
@@ -1620,6 +1645,9 @@ function tgSync(){S.decisions.filter(d=>d.status==='pending').forEach(tgDecision
   if(!tgPollT)tgPollT=setInterval(()=>{if(!document.hidden)tgApply();},10000);}
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)tgApply();});
 $('#pane-back').addEventListener('click',async e=>{
+  const pa=e.target.closest('[data-plauth]');if(pa){if(!REAL())return;pa.disabled=true;
+    try{const {data,error}=await sbc.functions.invoke('gdrive',{body:{action:'start'}});if(error||!data||!data.url)throw new Error((data&&data.error)||'请先保存 Client ID 和 Client secret');location.href=data.url;}
+    catch(err){toast('没法开始授权：'+esc(err.message));pa.disabled=false;}return;}
   const ps=e.target.closest('[data-plsave]');if(ps){const pl=S.plugins.find(x=>x.id===ps.dataset.plsave);if(!pl||!sbc||!authed)return;
     const vals=pl.fields.map(([k,l])=>[k,l,$(`#pl-${pl.id}-${k}`).value.trim()]).filter(x=>x[2]);if(!vals.length){toast('请先填写内容');return;}
     ps.disabled=true;try{for(const [k,l,v] of vals){const {error}=await sbc.rpc('set_secret',{p_item_id:`${pl.id}_${k}`,p_name:`${pl.name} · ${l}`,p_kind:pl.kind,p_value:v});if(error)throw error;}
@@ -1890,7 +1918,9 @@ async function boot(){
   await ensureLogin();
   const remote=await loadRemote();
   bootState(remote);if(authed&&!remote)saveRemote();
-  PLUGINS0.forEach((p,i)=>{if(!S.plugins.some(x=>x.id===p.id))S.plugins.splice(Math.min(i,S.plugins.length),0,JSON.parse(JSON.stringify(p)));});
+  S.plugins=PLUGINS0.map(p=>{const o=S.plugins.find(x=>x.id===p.id);const n=JSON.parse(JSON.stringify(p));if(o&&o.status&&(!n.fields||o.status!=='待授权'))n.status=o.status;return n;})
+    .concat(S.plugins.filter(x=>!PLUGINS0.some(p=>p.id===x.id)));
+  {const q=new URLSearchParams(location.search);if(q.get('drive')){setTimeout(()=>toast(q.get('drive')==='ok'?'Google Drive 已连接，之后的交付会自动存进去':'Drive 授权没成功：'+esc(q.get('msg')||'')),800);history.replaceState(null,'',location.pathname);}}
   if(authed){refreshSecretStatus();syncAgents().then(rtSync);setInterval(rtSync,8000);}buildWorld();resize();
   overview();if(camAnim){camera.position.copy(camAnim.p1);controls.target.copy(camAnim.t1);camAnim=null;}
   renderNav();renderDecisions();
