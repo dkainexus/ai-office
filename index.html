@@ -493,7 +493,7 @@ const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.setClearColor(0x000000,0);
 renderer.outputEncoding=THREE.sRGBEncoding;
-renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=0.86;
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 stage.appendChild(renderer.domElement);
 const scene=new THREE.Scene();
@@ -504,13 +504,15 @@ const camera=new THREE.PerspectiveCamera(36,1,0.3,400);
 camera.position.set(0,60,70);
 const controls=new THREE.OrbitControls(camera,renderer.domElement);
 controls.enableDamping=true;controls.maxPolarAngle=1.28;controls.minDistance=6;controls.maxDistance=160;
-const hemi=new THREE.HemisphereLight(0xe6f3ff,0x9a8f78,0.45);scene.add(hemi);
-const sun=new THREE.DirectionalLight(0xfff0dc,1.55);sun.castShadow=true;sun.shadow.mapSize.set(innerWidth<820?2048:4096,innerWidth<820?2048:4096);Object.assign(sun.shadow.camera,{left:-55,right:55,top:55,bottom:-55,near:1,far:260});sun.shadow.bias=-0.0004;sun.shadow.normalBias=0.02;
+const hemi=new THREE.HemisphereLight(0xe6f3ff,0x9a8f78,0.26);scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xffeccd,2.0);sun.castShadow=true;sun.shadow.mapSize.set(innerWidth<820?2048:4096,innerWidth<820?2048:4096);Object.assign(sun.shadow.camera,{left:-55,right:55,top:55,bottom:-55,near:1,far:260});sun.shadow.camera.updateProjectionMatrix();sun.shadow.bias=-0.0004;sun.shadow.normalBias=0.02;
 scene.add(sun);scene.add(sun.target);
 function setShadow(r,px,py,pz){Object.assign(sun.shadow.camera,{left:-r,right:r,top:r,bottom:-r,near:1,far:py*3});sun.shadow.camera.updateProjectionMatrix();sun.position.set(px,py,pz);sun.target.position.set(0,0,0);}
 
 const matCache={},geoCache={};
-const mat=(c,o)=>{if(o&&('noCast' in o||'m' in o)){o=Object.assign({},o);delete o.noCast;delete o.m;if(!Object.keys(o).length)o=null;}const k=c+'|'+(o?JSON.stringify(o):'');return matCache[k]||(matCache[k]=new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.7,metalness:0},o||{})));};
+// RoomEnvironment 很亮；强度压低才有明暗层次，否则画面被照平
+const ENVI=0.45;
+const mat=(c,o)=>{if(o&&('noCast' in o||'m' in o)){o=Object.assign({},o);delete o.noCast;delete o.m;if(!Object.keys(o).length)o=null;}const k=c+'|'+(o?JSON.stringify(o):'');return matCache[k]||(matCache[k]=new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.7,metalness:0,envMapIntensity:ENVI},o||{})));};
 const cachedGeos=new Set();const geo=(k,f)=>{if(!geoCache[k]){geoCache[k]=f();cachedGeos.add(geoCache[k]);}return geoCache[k];};
 const rgeo=(w,h,d,r)=>geo(`rb${w}_${h}_${d}_${r}`,()=>new THREE.RoundedBoxGeometry(w,h,d,2,Math.min(r,w/2-0.001,h/2-0.001,d/2-0.001)));
 const bgeo=(w,h,d)=>geo(`b${w}_${h}_${d}`,()=>new THREE.BoxGeometry(w,h,d));
@@ -663,7 +665,7 @@ const TX={
   grass:()=>ctex('grass',512,(g,s,R)=>{g.fillStyle='#8cc178';g.fillRect(0,0,s,s);for(let i=0;i<9000;i++){g.fillStyle=['#7fb66b','#99ca83','#86bb70','#a3d18c'][Math.floor(R()*4)];g.fillRect(R()*s,R()*s,2,4);}}),
   slats:b=>ctex('slat'+b,256,(g,s,R)=>{g.fillStyle=sh(b,-.4);g.fillRect(0,0,s,s);for(let x=0;x<s;x+=16){g.fillStyle=sh(b,(R()-.5)*.12);g.fillRect(x+2,0,12,s);}})
 };
-const texMat=(kind,base,o)=>{const k='T'+kind+base+JSON.stringify(o||{});return matCache[k]||(matCache[k]=new THREE.MeshStandardMaterial(Object.assign({map:TX[kind](base),roughness:.75},o||{})));};
+const texMat=(kind,base,o)=>{const k='T'+kind+base+JSON.stringify(o||{});return matCache[k]||(matCache[k]=new THREE.MeshStandardMaterial(Object.assign({map:TX[kind](base),roughness:.75,envMapIntensity:ENVI},o||{})));};
 function uvs(geo,sx,sy){const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*sx,uv.getY(i)*sy);return geo;}
 function tplane(p,x1,z1,x2,z2,m,y,tile){const o=new THREE.Mesh(uvs(new THREE.PlaneGeometry(x2-x1,z2-z1),(x2-x1)/tile,(z2-z1)/tile),m);o.rotation.x=-Math.PI/2;o.position.set((x1+x2)/2,y||0.01,(z1+z2)/2);o.receiveShadow=true;p.add(o);return o;}
 function tbox(p,w,h,d,m,x,y,z,tile,cast){const o=new THREE.Mesh(uvs(new THREE.BoxGeometry(w,h,d),Math.max(w,d)/tile,h/tile),m);o.position.set(x,y,z);o.castShadow=!!cast;o.receiveShadow=true;p.add(o);return o;}
@@ -804,7 +806,15 @@ function gwall(g,x1,z1,x2,z2,frame){const hz=Math.abs(z2-z1)<0.01,len=Math.hypot
   box(g,hz?len:0.08,0.07,hz?0.08:len,frame,cx,2.42,cz,{noCast:true});box(g,hz?len:0.08,0.07,hz?0.08:len,frame,cx,0.04,cz,{noCast:true});
   for(let k=0;k<=Math.round(len/2.4);k++){const f=k/Math.max(1,Math.round(len/2.4));box(g,0.06,2.4,0.06,frame,hz?x1+(x2-x1)*f:cx,1.2,hz?cz:z1+(z2-z1)*f,{noCast:true});}}
 function chairOffice(g,x,z,rot,c){const ch=new THREE.Group();ch.position.set(x,0,z);ch.rotation.y=rot;g.add(ch);c=c||'#3a4450';
-  rbox(ch,0.52,0.1,0.5,0.05,c,0,0.46,0);rbox(ch,0.5,0.55,0.08,0.04,c,0,0.78,0.24);cyl(ch,0.035,0.035,0.38,'#9aa3ab',0,0.24,0,{metalness:.6,roughness:.3});
+  rbox(ch,0.52,0.1,0.5,0.05,c,0,0.46,0);
+  // 椅背：中段 + 两片外折侧翼，拼出微曲面（侧翼与背框用 box，12 面/个，比圆角盒便宜一个数量级）
+  rbox(ch,0.3,0.55,0.07,0.03,c,0,0.78,0.245);
+  [-1,1].forEach(s=>{const w=box(ch,0.12,0.5,0.055,c,s*0.195,0.78,0.236);w.rotation.y=-s*0.3;});
+  box(ch,0.46,0.045,0.06,'#5b646d',0,1.055,0.243,{noCast:true});
+  // 扶手：立柱 + 扶手板
+  [-1,1].forEach(s=>{box(ch,0.042,0.17,0.042,'#5b646d',s*0.272,0.575,0.07);
+    box(ch,0.07,0.032,0.22,'#5b646d',s*0.272,0.675,0.025);});
+  cyl(ch,0.035,0.035,0.38,'#9aa3ab',0,0.24,0,{metalness:.6,roughness:.3});
   for(let i=0;i<5;i++){const a=i/5*Math.PI*2;const l=box(ch,0.04,0.03,0.3,'#5b646d',Math.sin(a)*0.15,0.04,Math.cos(a)*0.15);l.rotation.y=a;}}
 function lampPend(g,x,z,c){cyl(g,0.008,0.008,0.75,'#2a2f35',x,2.72,z);const sh2=new THREE.Mesh(geo('lampc',()=>new THREE.ConeGeometry(0.24,0.26,24,1,true)),new THREE.MeshStandardMaterial({color:c,roughness:.4,side:THREE.DoubleSide}));put(sh2,x,2.24,z,g,false);sphere(g,0.07,'#fff3d6',x,2.16,z,{emissive:'#ffe3b0',emissiveIntensity:1.6});}
 function deskSet(g,d,A,chairC){
@@ -814,8 +824,16 @@ function deskSet(g,d,A,chairC){
   else{[[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([a,b])=>box(g,0.05,0.72,0.05,'#2a2f35',x+a*0.68,0.36,zd+b*0.31));rbox(g,1.5,0.44,0.04,0.02,A,x,0.98,zd-0.39,{roughness:.9});}
   (d.dual?[-0.33,0.33]:[0]).forEach(o=>{rbox(g,0.62,0.38,0.035,0.02,'#1c2329',x+o,1.06,zd-0.22);const s=new THREE.Mesh(bgeo(0.56,0.32,0.005),screenM);put(s,x+o,1.06,zd-0.2,g,false);});
   cyl(g,0.02,0.02,0.2,'#2a2f35',x,0.86,zd-0.23);rbox(g,0.42,0.02,0.14,0.008,'#e9ecee',x,0.785,zd+0.1);
+  if(!ex){ // 桌下抽屉柜 + 理线槽：全部用 box（12 面/个），几乎不增加开销
+    const px=x+(d.n%2?-0.52:0.52);
+    box(g,0.36,0.56,0.5,'#e9ecee',px,0.28,zd+0.08);
+    [0,1,2].forEach(k=>box(g,0.33,0.015,0.02,'#c9ced2',px,0.12+k*0.17,zd+0.335,{noCast:true}));
+    box(g,1.3,0.07,0.08,'#2a2f35',x,0.63,zd-0.3,{noCast:true});
+  }
   if(d.n%3===0)cyl(g,0.04,0.035,0.1,'#f4f4f1',x+0.55,0.82,zd+0.15);
   if(d.n%4===1){cyl(g,0.07,0.06,0.12,'#e2d6c2',x-0.6,0.83,zd-0.15);leaf(g,0.1,'#5f9e4f',x-0.6,0.96,zd-0.15);}
+  if(d.n%5===2){box(g,0.2,0.006,0.27,'#fbfaf6',x-0.48,0.775,zd+0.14,{noCast:true});box(g,0.14,0.005,0.19,'#edeae2',x-0.5,0.781,zd+0.12,{noCast:true});}
+  if(d.n%7===3){box(g,0.3,0.012,0.21,'#b9c0c6',x+0.46,0.778,zd+0.06,{noCast:true});const lid=box(g,0.3,0.19,0.012,'#cfd5da',x+0.46,0.87,zd-0.04,{noCast:true});lid.rotation.x=-0.28;}
   chairOffice(g,x,zd+0.85,0,chairC);
   lampPend(g,x,zd,'#1c2329');
 }
