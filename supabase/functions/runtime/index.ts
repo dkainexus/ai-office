@@ -362,6 +362,37 @@ async function dailyBrief(st: any) {
   await tg("daily", { ref: `daily-${day}`, title: `每日简报 · ${day}`, from: pickPM(as)?.name || "系统", text: lines.join("\n") });
 }
 
+// ---------- 6. stuck watch ----------
+// 任务卡在某个状态不动超过阈值就提醒一次。
+//
+// ref 里带 updated_at：卡着的时候这个值不变，所以同一次卡死只会发一条；
+// 一旦有进展 updated_at 就变了，之后再卡是新的 ref，能重新提醒。
+//
+// 只看「本来应该在动」的状态。review（等你审批）、paused（等你加预算）、
+// blocked（已经单独报过警）都是在等人，不算卡住。
+async function stuckWatch(st: any) {
+  const mins = +(st.stuck_after_min ?? 30);
+  if (!(mins > 0)) return;
+  const cutoff = new Date(Date.now() - mins * 60000).toISOString();
+  const { data: ts } = await db.from("tasks").select("id,title,status,updated_at")
+    .in("status", ["planning", "planning_run", "active", "concluding"])
+    .lt("updated_at", cutoff).limit(5);
+  for (const t of ts || []) {
+    const age = Math.round((Date.now() - new Date(t.updated_at).getTime()) / 60000);
+    const { data: subs } = await db.from("subtasks").select("title,status,error").eq("task_id", t.id);
+    const left = (subs || []).filter((s: any) => s.status !== "done");
+    const err = left.map((s: any) => s.error).filter(Boolean)[0];
+    await tg("report", {
+      ref: `stuck-${t.id}-${t.updated_at}`,
+      title: `任务没有进展：${cut(t.title, 40)}`,
+      from: "系统",
+      text: `状态「${t.status}」已经 ${age} 分钟没动静。\n`
+        + (left.length ? `还没做完：${left.map((s: any) => s.title).join("、")}` : "没有待办步骤，可能是验收那一步卡住了。")
+        + (err ? `\n最近一次报错：${cut(err, 200)}` : ""),
+    });
+  }
+}
+
 // ---------- main ----------
 let running = false;
 async function tick() {
@@ -384,6 +415,9 @@ async function tick() {
       });
       return { idle: "monthly cap" };
     }
+    // 放在这里：系统没暂停、预算没用完、有 Key，也就是「本来能干活」的时候，
+    // 任务还不动才算真卡住。
+    await stuckWatch(st).catch((e) => console.error("stuck", e.message));
     const t0 = Date.now(); let steps = 0;
     while (Date.now() - t0 < 50000) {
       const p = (await db.rpc("rt_claim_plan")).data?.[0];

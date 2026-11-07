@@ -5,7 +5,7 @@
   "scripts": {
     "check": "node checks/run.js",
     "check:live": "node checks/run.js --url https://office.dkglobal.group",
-    "test": "node checks/backend-real.js && node checks/approval.js && node checks/schema-rebuild.js",
+    "test": "node checks/backend-real.js && node checks/real-views.js && node checks/approval.js && node checks/schema-rebuild.js",
     "setup": "npm install && npx playwright install chromium chromium-headless-shell"
   },
   "devDependencies": {

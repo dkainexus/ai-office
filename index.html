@@ -1510,6 +1510,17 @@ function renderDecisions(){
 }
 $('#pane-dec').addEventListener('click',e=>{const b=e.target.closest('.opt');if(!b)return;const id=b.closest('.card').dataset.id;const n=$('#note-'+id);resolve(id,b.dataset.l,b.dataset.k,n?n.value.trim():'');});
 
+// 任务卡上的「过程与花费」：时间线来自 messages，成本明细来自 model_calls，
+// 两张表都是后台真实写入的，这里只读。演示模式下这两个字段是空的，不渲染。
+const PURP={plan:'拆解',execute:'执行',review:'验收'};
+function tlHTML(T){
+  const ms=T.msgs||[],cs=T.calls||[];
+  if(!T.real||(!ms.length&&!cs.length))return '';
+  const sum=cs.reduce((n,c)=>n+c.cost,0);
+  return `<details class="deliv" data-sid="tl-${esc(T.id)}"><summary>过程与花费 · ${ms.length} 条记录 · ${cs.length} 次模型调用 · ${rm(sum)}</summary>
+  ${ms.length?`<div class="mem">${ms.slice(-20).map(m=>`<div><time>${esc(m.at)}</time><span><b>${esc(m.who)}</b> ${esc(m.txt)}${m.model?` <span class="chip">${esc(m.model)}</span>`:''}</span></div>`).join('')}</div>`:''}
+  ${cs.length?`<div class="mem" style="margin-top:6px">${cs.map(c=>`<div><time>${esc(c.at)}</time><span>${esc(c.who)} · ${esc(c.model)}${c.purpose?' · '+esc(PURP[c.purpose]||c.purpose):''} · ${rm(c.cost)} · ${c.tin}+${c.tout} tokens</span></div>`).join('')}</div>`:''}</details>`;
+}
 function renderTasks(force){
   if($('#pane-task').hidden||(!force&&busy('#pane-task')))return;
   const ST={planning:'项目经理拆解中',planning_run:'项目经理拆解中',active:'进行中',concluding:'项目经理验收中',review:'等你最终审批',done:'已完成',blocked:'缺少部门，等待招人',rework:'返工中',paused:'预算用完，等你决定',stopped:'已停止'};
@@ -1528,6 +1539,7 @@ function renderTasks(force){
       <div class="bar"><i style="width:${T.status==='done'?100:prog}%"></i></div>
       ${T.subs.length?`<div class="subs">${T.subs.map(s=>`<div><span class="d">${esc(s.dept)}</span><span>${esc(s.agentName)}</span><span class="s ${s.status}">${{todo:'待开始',doing:'进行中',done:'完成',failed:'失败'}[s.status]||s.status}</span></div>${s.output?`<details class="deliv" data-sid="${s.id}"><summary>${esc(s.title)} · 查看交付${s.model?` · ${esc(s.model)}`:''}</summary><pre>${esc(s.output)}</pre></details>`:''}`).join('')}</div>`:''}
       ${T.real&&T.note&&T.status!=='done'?`<div class="meta">${esc(T.note)}</div>`:''}
+      ${tlHTML(T)}
       <div class="meta">已花费 ${rm(T.cost)}</div>${T.conclusion?`<div class="rev">${esc(T.conclusion)}</div>`:''}${T.drive?`<a class="dlink" href="${esc(T.drive)}" target="_blank" rel="noopener">打开 Google Drive 文件夹 ↗</a>`:''}</div>`;}).join(''):'<div class="empty">还没有任务。</div>'}`;
   openIds.forEach(id=>{const e=document.querySelector(`#pane-task details[data-sid="${id}"]`);if(e)e.open=true;});
   $('#tForm').onsubmit=e=>{e.preventDefault();const t=$('#tTitle').value.trim();if(!t)return;publishTask(t,$('#tDesc').value.trim(),$('#tPrio').value);$('#tTitle').value='';$('#tDesc').value='';document.activeElement.blur();renderTasks(true);toast('任务已交给项目经理');};
@@ -1627,17 +1639,26 @@ async function rtSync(){if(!REAL()||rtBusy||document.hidden)return;rtBusy=true;
       sbc.from('tasks').select('*').order('created_at',{ascending:false}).limit(40),
       sbc.from('decisions').select('*').order('created_at',{ascending:false}).limit(40)]);
     const ids=(ts||[]).map(t=>t.id);
-    const {data:ss}=ids.length?await sbc.from('subtasks').select('id,task_id,dept,title,agent_id,status,seq,output,model,error').in('task_id',ids).order('seq'):{data:[]};
+    // 子任务 + 时间线（messages）+ 这些任务的每次模型调用（model_calls），都是只读
+    const [{data:ss},{data:ms},{data:mcs}]=ids.length?await Promise.all([
+      sbc.from('subtasks').select('id,task_id,dept,title,agent_id,status,seq,output,model,error').in('task_id',ids).order('seq'),
+      sbc.from('messages').select('thread,agent_id,content,model,created_at').in('thread',ids).order('created_at').limit(200),
+      sbc.from('model_calls').select('task_id,agent_id,model,purpose,cost,tokens_in,tokens_out,created_at').in('task_id',ids).order('created_at').limit(200)
+    ]):[{data:[]},{data:[]},{data:[]}];
     let changed=false;
     for(const t of (ts||[]).slice().reverse()){
       let T=S.tasks.find(x=>x.id===t.id);
       if(!T){T={id:t.id,title:t.title,desc:t.description||'',prio:t.priority,day:dayOf(t.created_at),at:hm(t.created_at),subs:[],cost:0};S.tasks.push(T);changed=true;}
-      const before=JSON.stringify([T.status,T.conclusion,T.subs.map(s=>[s.id,s.status])]);
+      const before=JSON.stringify([T.status,T.conclusion,T.subs.map(s=>[s.id,s.status]),(T.msgs||[]).length,(T.calls||[]).length]);
       const wasDone=T.status==='done';
       Object.assign(T,{real:true,status:t.status,cost:+t.cost||0,conclusion:t.conclusion||'',note:t.plan_note||'',drive:t.drive_folder_url||''});
       T.subs=(ss||[]).filter(s=>s.task_id===t.id).map(s=>{const a=S.agents.find(x=>x.id===s.agent_id);
         return{id:s.id,dept:s.dept,title:s.title,agentId:s.agent_id,agentName:a?a.name:'—',status:s.status,output:s.output||'',model:s.model||'',err:s.error||'',seq:s.seq,task:t.id,real:true};});
-      if(before!==JSON.stringify([T.status,T.conclusion,T.subs.map(s=>[s.id,s.status])])){changed=true;
+      const nm=a=>{const x=S.agents.find(y=>y.id===a);return x?x.name:'系统';};
+      T.msgs=(ms||[]).filter(m=>m.thread===t.id).map(m=>({who:nm(m.agent_id),txt:m.content||'',model:m.model||'',at:hm(m.created_at)}));
+      T.calls=(mcs||[]).filter(c=>c.task_id===t.id).map(c=>({who:nm(c.agent_id),model:c.model||'',purpose:c.purpose||'',
+        cost:+c.cost||0,tin:c.tokens_in||0,tout:c.tokens_out||0,at:hm(c.created_at)}));
+      if(before!==JSON.stringify([T.status,T.conclusion,T.subs.map(s=>[s.id,s.status]),(T.msgs||[]).length,(T.calls||[]).length])){changed=true;
         if(!wasDone&&T.status==='done')addLog(`任务「${T.title}」已完成`,true);}
     }
     for(const x of (ds||[]).slice().reverse()){
@@ -1734,7 +1755,23 @@ function refreshLive(){
 function selectAgent(id,go){
   selId=id;selB=null;const r=live[id];
   if(go&&r&&r.floor)focusFloor(r.riding>0&&r.ride?r.ride.floor:r.floor);
-  renderTeam();renderDrawer();Object.values(live).forEach(x=>x.tagKey=null);
+  renderTeam();renderDrawer();loadAgentDetail(id);Object.values(live).forEach(x=>x.tagKey=null);
+}
+// 登录后，员工抽屉里的记忆和统计都来自后台真实数据（agent_memories / subtasks / model_calls）。
+// 只在点开某个员工时拉一次，不进 renderDrawer —— 那个函数会被 refreshLive 反复调用。
+const AG={};
+async function loadAgentDetail(id){
+  if(!REAL()||!id)return;
+  try{
+    const [{data:mem},{data:subs},{data:calls}]=await Promise.all([
+      sbc.from('agent_memories').select('content,created_at').eq('agent_id',id).order('created_at',{ascending:false}).limit(8),
+      sbc.from('subtasks').select('status').eq('agent_id',id),
+      sbc.from('model_calls').select('cost').eq('agent_id',id)]);
+    AG[id]={mem:mem||[],done:(subs||[]).filter(s=>s.status==='done').length,
+      failed:(subs||[]).filter(s=>s.status==='failed').length,
+      calls:(calls||[]).length,cost:(calls||[]).reduce((n,c)=>n+(+c.cost||0),0)};
+    if(selId===id)renderDrawer();
+  }catch(e){console.warn('agent detail',e&&e.message);}
 }
 function selectBuilding(id){selB=id;selId=null;follow=false;renderDrawer();renderNav();renderTeam();Object.values(live).forEach(x=>x.tagKey=null);}
 let delArm=false;
@@ -1751,7 +1788,7 @@ function renderDrawer(){
   const r=live[a.id],role=roleOf(a),[cls,lab]=stateOf(r);
   dr.hidden=false;
   dr.innerHTML=`<div class="hd"><span class="av" style="${avStyle(a)}"></span><div><h3>${esc(a.name)}</h3><span class="badge" style="--bc:${LVL_COLOR[role.level]}">${role.label} · ${role.dept} · L${role.level}</span></div><button class="x" id="dClose" aria-label="关闭">×</button></div>
-   <dl class="kv"><dt>状态</dt><dd><span class="chip ${cls}" id="dState"><i></i>${lab}</span></dd><dt>正在做</dt><dd id="dTask">${esc(r.task)}</dd><dt>位置</dt><dd id="dWhere"></dd><dt>当前模型</dt><dd id="dModel">${esc(r.model||'—')}</dd><dt>今日花费</dt><dd>${rm(a.spendDay===S.day?a.spend||0:0)}</dd></dl>
+   <dl class="kv"><dt>状态</dt><dd><span class="chip ${cls}" id="dState"><i></i>${lab}</span></dd><dt>正在做</dt><dd id="dTask">${esc(r.task)}</dd><dt>位置</dt><dd id="dWhere"></dd><dt>当前模型</dt><dd id="dModel">${esc(r.model||'—')}</dd>${REAL()?(AG[a.id]?`<dt>完成步骤</dt><dd>${AG[a.id].done} 个${AG[a.id].failed?` · 失败 ${AG[a.id].failed} 个`:''}</dd><dt>累计花费</dt><dd>${AG[a.id].calls} 次调用 · ${rm(AG[a.id].cost)}</dd>`:'<dt>后台统计</dt><dd>载入中…</dd>'):`<dt>今日花费</dt><dd>${rm(a.spendDay===S.day?a.spend||0:0)}</dd>`}</dl>
    <div class="sub">性格 / 工作方式</div><div class="prompt">${a.prompt?esc(a.prompt):'未设置'}</div>
    <div class="sub">记忆（最近）</div><div class="mem" id="dMem"></div>
    <div class="row"><button class="btn ghost" id="dFollow">${follow?'取消跟随':'跟随视角'}</button><button class="btn ghost" id="dEdit">编辑外观与服装</button><button class="btn danger" id="dDel">离职</button></div>`;
@@ -1761,7 +1798,14 @@ function renderDrawer(){
   $('#dEdit').onclick=()=>openModal(a);
   $('#dDel').onclick=e=>{if(!delArm){delArm=true;e.target.textContent='确认离职？';return;}removeAgent(a.id);};
 }
-function renderMem(){const el=$('#dMem');const a=S.agents.find(x=>x.id===selId);if(!el||!a)return;const m=(a.memory||[]).slice(-7).reverse();
+const dt=iso=>{try{return new Date(iso).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});}catch(e){return '';}};
+function renderMem(){const el=$('#dMem');const a=S.agents.find(x=>x.id===selId);if(!el||!a)return;
+  if(REAL()){const g=AG[a.id];
+    if(!g){el.innerHTML='<span style="color:var(--ink-2)">载入中…</span>';return;}
+    // agent_memories 由后台在拆解、完成、验收时写入，这里原样显示，不混入演示记忆
+    el.innerHTML=g.mem.length?g.mem.map(x=>`<div><time>${esc(dt(x.created_at))}</time><span>${esc(x.content)}</span></div>`).join('')
+      :'<span style="color:var(--ink-2)">后台还没有这名员工的记忆，做完任务后会出现</span>';return;}
+  const m=(a.memory||[]).slice(-7).reverse();
   el.innerHTML=m.length?m.map(x=>`<div><time>D${x.d} ${x.t}</time><span>${esc(x.txt)}</span></div>`).join(''):'<span style="color:var(--ink-2)">还没有记忆，工作一段时间后会出现</span>';}
 function removeAgent(id){
   const r=live[id];if(!r)return;release(r);meeting.forEach(m=>m.members=m.members.filter(x=>x!==id));
