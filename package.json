@@ -1,0 +1,14 @@
+{
+  "name": "ai-office",
+  "private": true,
+  "description": "DK Global Group · AI Office — 上线前检查与测试用的开发依赖。网站本身是单文件 index.html，不需要构建。",
+  "scripts": {
+    "check": "node checks/run.js",
+    "check:live": "node checks/run.js --url https://office.dkglobal.group",
+    "test": "node checks/backend-real.js && node checks/approval.js",
+    "setup": "npm install && npx playwright install chromium chromium-headless-shell"
+  },
+  "devDependencies": {
+    "playwright": "^1.65.0"
+  }
+}

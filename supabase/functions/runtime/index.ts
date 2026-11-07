@@ -18,7 +18,18 @@ const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 const cut = (s: unknown, n: number) => { const t = String(s ?? ""); return t.length > n ? t.slice(0, n - 1) + "…" : t; };
 const rid = (p: string) => p + crypto.randomUUID().replace(/-/g, "").slice(0, 10);
-const FINAL_RE = /上线|发布|投放|付款|签约|部署|采购|对外|发送给客户/;
+const FINAL_RE = /上线|发布|投放|付款|签约|部署|采购|对外|发送给客户/g;
+// 命中词前面紧跟否定说法时不算数。任务描述里常写「不能付款」「不涉及上线」来交代边界，
+// 旧版的纯子串匹配会把这类说明也当成需要人工审批，Dave 会收到一堆没必要的审批。
+// 只收明确表达「做不到 / 不许做」的词。「不要」「没有」太泛（不要紧、还没有付款），
+// 漏拦比多拦危险，所以不收。
+const NEG_RE = /(不能|不会|不可|无法|不涉及|不得|禁止|不需要|无需|避免)[^。；;！!\n]{0,10}$/;
+function needsApproval(text: string) {
+  FINAL_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = FINAL_RE.exec(text))) if (!NEG_RE.test(text.slice(0, m.index))) return true;
+  return false;
+}
 const SMART_ROLES = new Set(["director", "pm", "manager", "lead", "engineer"]);
 
 type Agent = { id: string; name: string; role: string; title: string | null; dept: string | null; prompt: string | null; level: number };
@@ -187,7 +198,7 @@ async function plan(T: any, st: any, keys: Keys) {
     };
   });
   await db.from("subtasks").insert(rows);
-  const needsFinal = !!p.needs_final || T.priority !== "普通" || FINAL_RE.test(`${T.title} ${T.description || ""}`);
+  const needsFinal = !!p.needs_final || T.priority !== "普通" || needsApproval(`${T.title}。${T.description || ""}`);
   await db.from("tasks").update({
     status: "active", needs_final: needsFinal, plan_note: cut(p.note || "", 300), updated_at: new Date().toISOString(),
     ...(T.version === 1 && !T.rework_note && +T.cost === 0 ? { budget_rm: +(st.task_budget_rm || 20) } : {}),
