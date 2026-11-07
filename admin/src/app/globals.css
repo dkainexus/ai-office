@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+/* 配色和字体沿用 3D 页 index.html 的 :root，两边看起来要像同一家公司 */
+:root {
+  --paper: #fbfcfb;
+  --paper-2: #eff2f1;
+  --ink: #1c2329;
+  --ink-2: #5c6872;
+  --line: #dfe4e3;
+  --cobalt: #2b55c9;
+  --amber: #e39a2d;
+  --amber-soft: #fcf1dd;
+  --ok: #2f8f5b;
+  --bad: #c2453b;
+  --f-display: "Unbounded", "Noto Sans SC", system-ui, sans-serif;
+  --f-body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-line: var(--line);
+  --color-cobalt: var(--cobalt);
+  --color-amber: var(--amber);
+  --color-ok: var(--ok);
+  --color-bad: var(--bad);
+  --font-display: var(--f-display);
+  --font-body: var(--f-body);
+  --font-mono: var(--f-mono);
+}
+
+html,
+body {
+  background: var(--paper-2);
+  color: var(--ink);
+  font-family: var(--f-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 数字一律等宽，表格里对得齐 */
+.num {
+  font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums;
+}
