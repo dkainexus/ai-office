@@ -1551,24 +1551,50 @@ function renderBuildings(){
 $('#pane-bld').addEventListener('click',e=>{const f=e.target.closest('[data-floor]');if(f){focusFloor(f.dataset.floor);return;}const ed=e.target.closest('[data-edit]');if(ed){openBModal(S.buildings.find(b=>b.id===ed.dataset.edit));return;}if(e.target.closest('#bNew2'))openBModal(null);});
 
 function busy(id){const a=document.activeElement;return a&&a!==document.body&&$(id).contains(a)&&/INPUT|TEXTAREA|SELECT/.test(a.tagName);}
+/* 登录后，后台只显示 Supabase 里的真实数据；演示用的模拟模型、路由和金库只在未登录的展示模式出现 */
+const PUR={plan:['拆解','decide'],execute:['执行','downgrade'],review:['验收','approve']};
+const taskName=id=>{const T=S.tasks.find(t=>t.id===id);return T?T.title:'';};
+function realModelsHTML(){
+  const st=BUD.st||{},mc=BUD.calls||[],agg={};
+  mc.forEach(c=>{const k=c.model||'—';const a=agg[k]||(agg[k]={n:0,rm:0,ti:0,to:0,host:c.host});a.n++;a.rm+=+c.cost||0;a.ti+=c.tokens_in||0;a.to+=c.tokens_out||0;});
+  const rows=Object.entries(agg).sort((a,b)=>b[1].rm-a[1].rm);
+  const chain=t=>((st.models||{})[t]||[]).map(r=>esc(r.split(':')[1]||r)).join(' → ')||'未配置';
+  return `<div class="h">模型用量（真实，最近 ${mc.length} 次调用）</div>
+  ${rows.length?rows.map(([m,v])=>`<div class="mrow"><b>${esc(m)}</b><span class="m2">${v.host==='anthropic'?'Claude':'GPT'} · ${v.n} 次 · RM ${v.rm.toFixed(2)} · 输入 ${v.ti.toLocaleString()} / 输出 ${v.to.toLocaleString()} tokens</span></div>`).join(''):'<div class="empty">还没有真实调用。到「任务」发一个任务就会有。</div>'}
+  <div class="h">调用路由（后台实际配置，从左到右依次尝试）</div>
+  <dl class="routes"><dt>重要 / 技术</dt><dd>${chain('smart')}</dd><dt>日常</dt><dd>${chain('fast')}</dd></dl>
+  <div class="h">调用记录</div>
+  <div class="pmlog">${mc.slice(0,18).map(c=>{const p=PUR[c.purpose]||[esc(c.purpose),'decide'],t=taskName(c.task_id);
+    return `<div><time>${hm(c.created_at)}</time><span class="k ${p[1]}">${p[0]}</span><span>${esc(c.model)} · RM ${(+c.cost).toFixed(4)}${t?' · '+esc(t):''}</span></div>`;}).join('')||'<div class="empty">还没有记录</div>'}</div>`;
+}
+function realVaultHTML(){
+  const mc=BUD.calls||[],byHost={anthropic:0,openai:0};mc.forEach(c=>{if(byHost[c.host]!=null)byHost[c.host]++;});
+  const USE={p_claude_key:'anthropic',p_openai_key:'openai'};
+  return `<div class="rule">这是后台金库里真实登记的凭证。明文只存在后台，网页和 Agent 都取不到，只能替换。模型 Key 的调用次数来自真实调用流水；其他凭证后台暂时没有计数。</div>
+  ${(BUD.vault||[]).map(v=>{const u=USE[v.id];
+    return `<div class="vitem"><div class="vt"><b>${esc(v.name)}</b><span class="mask">••••••••</span></div>
+    <div class="meta"><span class="chip">${esc(v.kind)}</span>${v.needs_approval?'<span class="lock">每次需批准</span>':''}</div>
+    <div class="meta">${u?`最近 ${mc.length} 次模型调用里，这把 Key 用了 ${byHost[u]} 次`:'后台暂未统计这类凭证的使用次数'}</div></div>`;}).join('')||'<div class="empty">金库里还没有凭证。</div>'}`;
+}
 function renderBack(force){
   if($('#pane-back').hidden||(!force&&busy('#pane-back')))return;
+  const R=!!(REAL()&&BUD);
   const tot=S.cost.self+S.cost.cloud;const roleOpts=Object.entries(ROLES).map(([k,r])=>`<label><input type="checkbox" value="${k}" name="vr">${r.label}</label>`).join('');
   $('#pane-back').innerHTML=`${budgetHTML()}${upgradeHTML()}
-  <div class="server"><div><b>自建 GPU 服务器</b><br><span>${S.selfOnline?'在线 · 开源文本 / 图像 / 视频模型优先':'离线 · 请求已自动切到云端备用'}</span></div><button class="tg ${S.selfOnline?'on':''}" id="srvTg" aria-label="切换自建服务器在线状态"></button></div>
-  <div class="kpis"><div class="kpi"><span>今日花费</span><b>${rm(tot)}</b></div><div class="kpi"><span>自建占比</span><b>${selfShare()}%</b></div><div class="kpi"><span>本月预算</span><b>${Math.round(S.budget.used/S.budget.cap*100)}%</b></div></div>
-  <div class="h">模型（费用为估算，可在后台配置）</div>
+  ${R?'':`<div class="server"><div><b>自建 GPU 服务器</b><br><span>${S.selfOnline?'在线 · 开源文本 / 图像 / 视频模型优先':'离线 · 请求已自动切到云端备用'}</span></div><button class="tg ${S.selfOnline?'on':''}" id="srvTg" aria-label="切换自建服务器在线状态"></button></div>
+  <div class="kpis"><div class="kpi"><span>今日花费</span><b>${rm(tot)}</b></div><div class="kpi"><span>自建占比</span><b>${selfShare()}%</b></div><div class="kpi"><span>本月预算</span><b>${Math.round(S.budget.used/S.budget.cap*100)}%</b></div></div>`}
+  ${R?realModelsHTML():`<div class="h">模型（演示数据，费用为估算）</div>
   ${S.models.map(m=>`<div class="mrow"><b>${esc(m.name)}</b><button class="tg ${m.on?'on':''}" data-mtg="${m.id}" aria-label="启用或停用 ${esc(m.name)}"></button><span class="m2">${{text:'文本',video:'视频',image:'图像'}[m.kind]} · ${m.host==='self'?'自建':'云端'} · ${rm(m.cost)}/次 · ${m.note} · 已调用 ${m.calls} 次</span></div>`).join('')}
-  <div class="h">调用路由（从左到右依次尝试）</div>
+  <div class="h">调用路由（演示，从左到右依次尝试）</div>
   <dl class="routes">${Object.values(ROUTES).map(r=>`<dt>${r.label}</dt><dd>${r.chain.map(id=>esc(modelById(id).name)).join(' → ')}</dd>`).join('')}</dl>
-  <div class="h">项目经理审核记录</div>
-  <div class="pmlog">${S.pmLog.slice(-18).reverse().map(l=>`<div><time>${l.t}</time><span class="k ${l.k}">${{approve:'批准',downgrade:'降级',anomaly:'异常',block:'拒绝',decide:'决定'}[l.k]}</span><span>${esc(l.txt)}</span></div>`).join('')||'<div class="empty">还没有记录</div>'}</div>
+  <div class="h">项目经理审核记录（演示）</div>
+  <div class="pmlog">${S.pmLog.slice(-18).reverse().map(l=>`<div><time>${l.t}</time><span class="k ${l.k}">${{approve:'批准',downgrade:'降级',anomaly:'异常',block:'拒绝',decide:'决定'}[l.k]}</span><span>${esc(l.txt)}</span></div>`).join('')||'<div class="empty">还没有记录</div>'}</div>`}
   <div class="h">插件与机器人</div>
   <div class="rule">${authed?'<b>后台已连接。</b>这里填的密钥会直接存进后台金库，保存后页面和 Agent 都看不到明文，只能替换。':'<b>后台未连接。</b>登录后才能保存密钥。'}需要登录授权的插件，点「去授权」用你的账号登录一次即可。Agent 发现缺少某个平台的插件时，会自动开发并出现在这里，等你登录授权。</div>
   ${S.plugins.map(pl=>`<div class="vitem"><div class="vt"><b>${esc(pl.name)}</b><span class="lock">${esc(pl.status)}</span></div><div class="meta">${esc(pl.desc)}</div>${pl.by?`<div class="meta">${esc(pl.by)}</div>`:''}
     ${pl.fields?pl.fields.map(([k,l])=>`<input type="password" class="pin" id="pl-${pl.id}-${k}" placeholder="${l}${pl.status==='已配置'||pl.status==='已授权'?'（已保存，输入新值可替换）':''}" aria-label="${l}" autocomplete="off" ${authed?'':'disabled'}>`).join('')+`<button class="btn ghost sm" data-plsave="${pl.id}" ${authed?'':'disabled'}>保存到金库</button>`+(pl.kind==='oauth'?`<button class="btn primary sm" data-plauth="${pl.id}" ${authed&&(pl.status==='已配置'||pl.status==='已授权')?'':'disabled'}>${pl.status==='已授权'?'重新授权':'去授权（用你的 Google 账号登录一次）'}</button>`:''):'<button class="btn ghost sm" disabled>去授权（下一步接入）</button>'}</div>`).join('')}
   <div class="h">金库</div>
-  <div class="rule">密钥只存在后台金库。Agent 只能请求调用，由后台代为注入凭证，Agent 看不到明文。标记为“每次需批准”的凭证，必须在你批准相关事项后才会使用。这个页面不保存任何真实密钥。</div>
+  ${R?realVaultHTML():`<div class="rule">密钥只存在后台金库。Agent 只能请求调用，由后台代为注入凭证，Agent 看不到明文。标记为“每次需批准”的凭证，必须在你批准相关事项后才会使用。下面是演示清单，这个页面不保存任何真实密钥。</div>
   ${S.vault.map(v=>`<div class="vitem"><div class="vt"><b>${esc(v.name)}</b><span class="mask">••••••••</span><button class="del" data-vdel="${v.id}">移除</button></div>
     <div class="meta"><span class="chip">${esc(v.kind)}</span>${v.approval?'<span class="lock">每次需批准</span>':''}${v.roles.length===Object.keys(ROLES).length?'<span class="chip">全部职位</span>':v.roles.map(k=>`<span class="chip">${ROLES[k]?ROLES[k].label:k}</span>`).join('')}</div>
     <div class="meta">已调用 ${v.uses||0} 次${v.last?' · 最近：'+esc(v.last):''}</div></div>`).join('')}
@@ -1577,7 +1603,7 @@ function renderBack(force){
     <select id="vKind" aria-label="凭证类型"><option>API Key</option><option>登录账号</option><option>OAuth Token</option><option>数据库连接</option></select>
     <div class="checks">${roleOpts}</div>
     <label class="checks"><input type="checkbox" id="vAppr"> 每次调用都需要我批准</label>
-    <button class="btn ghost" type="submit">登记到金库</button></form>`;
+    <button class="btn ghost" type="submit">登记到金库</button></form>`}`;
 }
 async function refreshSecretStatus(){if(!sbc||!authed)return;try{const {data}=await sbc.rpc('secret_status');const ok=new Set((data||[]).filter(x=>x.configured).map(x=>x.item_id));
   S.plugins.forEach(pl=>{if(pl.fields&&pl.fields.every(([k])=>ok.has(`${pl.id}_${k}`)))pl.status=ok.has(`${pl.id}_refresh`)?'已授权':'已配置';});
@@ -1632,9 +1658,12 @@ let BUD=null;
 async function loadBudget(){if(!REAL())return;
   try{const [st,m,d,lg]=await Promise.all([sbc.from('runtime_settings').select('data').eq('id',1).maybeSingle(),sbc.rpc('rt_month_spend'),sbc.rpc('rt_day_spend'),
       sbc.from('budget_log').select('*').order('created_at',{ascending:false}).limit(30)]);
-    const [up,fb]=await Promise.all([sbc.from('upgrade_proposals').select('*').order('created_at',{ascending:false}).limit(12),
-      sbc.from('feedback').select('*').eq('status','open').order('created_at',{ascending:false}).limit(12)]);
-    BUD={st:(st.data&&st.data.data)||{},month:+m.data||0,day:+d.data||0,log:lg.data||[],ups:up.data||[],fb:fb.data||[]};renderBack();}catch(e){console.warn('budget',e&&e.message);}}
+    const [up,fb,mc,vi]=await Promise.all([sbc.from('upgrade_proposals').select('*').order('created_at',{ascending:false}).limit(12),
+      sbc.from('feedback').select('*').eq('status','open').order('created_at',{ascending:false}).limit(12),
+      // 真实调用流水与金库清单；只取非机密字段，secret_id 永不下发到前端
+      sbc.from('model_calls').select('model,host,purpose,cost,tokens_in,tokens_out,task_id,created_at').order('created_at',{ascending:false}).limit(60),
+      sbc.from('vault_items').select('id,name,kind,needs_approval,uses,last_used_at').order('id')]);
+    BUD={st:(st.data&&st.data.data)||{},month:+m.data||0,day:+d.data||0,log:lg.data||[],ups:up.data||[],fb:fb.data||[],calls:mc.data||[],vault:vi.data||[]};renderBack();}catch(e){console.warn('budget',e&&e.message);}}
 function budgetHTML(){if(!REAL())return '';if(!BUD)return '<div class="h">预算</div><div class="empty">载入中…</div>';
   const st=BUD.st,cap=+st.monthly_cap_rm||0,pct=cap?Math.round(BUD.month/cap*100):0;
   const K={set_monthly:'改月上限',set_task:'改单任务上限',set_task_topup:'改单任务追加额',set_month_topup:'改月追加额',topup_task:'任务追加',topup_month:'月度追加'};
@@ -1694,7 +1723,8 @@ $('#pane-back').addEventListener('click',async e=>{
   const m=e.target.closest('[data-mtg]');if(m){const x=modelById(m.dataset.mtg);x.on=!x.on;renderBack(true);save();return;}
   const d=e.target.closest('[data-vdel]');if(d){const v=S.vault.find(x=>x.id===d.dataset.vdel);S.vault=S.vault.filter(x=>x!==v);addLog(`你从金库移除了「${v.name}」`);renderBack(true);save();}
 });
-$('#pane-back').addEventListener('submit',e=>{e.preventDefault();const name=$('#vName').value.trim();if(!name)return;const roles=$$('input[name=vr]:checked').map(x=>x.value);
+// 这个监听器挂在整个后台面板上，预算表单和反馈表单的提交也会进来；登录后金库表单不存在，必须先认表单 id
+$('#pane-back').addEventListener('submit',e=>{if(e.target.id!=='vForm')return;e.preventDefault();const name=$('#vName').value.trim();if(!name)return;const roles=$$('input[name=vr]:checked').map(x=>x.value);
   S.vault.push({id:'v'+uid(),name,kind:$('#vKind').value,roles,approval:$('#vAppr').checked,uses:0});addLog(`你在金库登记了「${name}」`);renderBack(true);save();});
 function renderLog(){const el=$('#log');el.innerHTML=S.log.slice().reverse().map(l=>`<div><time>${l.t}</time><span class="${l.hl?'hl':''}">${esc(l.txt)}</span></div>`).join('')||'<div class="empty">还没有动态</div>';}
 function refreshLive(){
