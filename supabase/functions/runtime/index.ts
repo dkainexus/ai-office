@@ -34,7 +34,21 @@ const SMART_ROLES = new Set(["director", "pm", "manager", "lead", "engineer"]);
 
 type Agent = { id: string; name: string; role: string; title: string | null; dept: string | null; prompt: string | null; level: number };
 type Keys = { anthropic: string | null; openai: string | null };
-type Call = { text: string; model: string; host: string; tin: number; tout: number; usd: number };
+type Call = { text: string; model: string; host: string; tin: number; tout: number; usd: number; cut: boolean };
+
+// 模型是「写完了」还是「写到上限被掐断」。
+//
+// 之前两家的这个信号都没看，于是半截文稿被原样存进 subtasks.output、标成 done，
+// 项目经理拿着残稿去验收，Dave 也收不到任何提示。实测遇到过一次：
+// tokens_out 正好等于 max_tokens 6000。
+//
+// Anthropic: stop_reason = "max_tokens"；OpenAI: choices[0].finish_reason = "length"。
+function truncated(host: string, j: any) {
+  return host === "anthropic"
+    ? j?.stop_reason === "max_tokens"
+    : j?.choices?.[0]?.finish_reason === "length";
+}
+const CUT_NOTE = "这一步的交付在写到长度上限时被掐断，不是完整内容。";
 
 async function secret(id: string) {
   const { data, error } = await db.rpc("tg_secret", { p_id: id });
@@ -75,7 +89,7 @@ async function anthropic(key: string, model: string, system: string, user: strin
   const text = (j.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text).join("\n").trim();
   if (!text) throw new Error("Claude 返回空内容");
   const tin = j.usage?.input_tokens || 0, tout = j.usage?.output_tokens || 0;
-  return { text, model, host: "anthropic", tin, tout, usd: price(model, tin, tout, st) };
+  return { text, model, host: "anthropic", tin, tout, usd: price(model, tin, tout, st), cut: truncated("anthropic", j) };
 }
 async function openai(key: string, model: string, system: string, user: string, max: number, st: any): Promise<Call> {
   const body: any = { model, messages: [{ role: "system", content: system }, { role: "user", content: user }], max_completion_tokens: max };
@@ -89,7 +103,7 @@ async function openai(key: string, model: string, system: string, user: string, 
   const text = (j.choices?.[0]?.message?.content || "").trim();
   if (!text) throw new Error("GPT 返回空内容");
   const tin = j.usage?.prompt_tokens || 0, tout = j.usage?.completion_tokens || 0;
-  return { text, model, host: "openai", tin, tout, usd: price(model, tin, tout, st) };
+  return { text, model, host: "openai", tin, tout, usd: price(model, tin, tout, st), cut: truncated("openai", j) };
 }
 async function callModel(tier: "smart" | "fast", system: string, user: string, max: number, st: any, keys: Keys): Promise<Call> {
   const routes: string[] = [...(st.models?.[tier] || []), ...(st.models?.[tier === "smart" ? "fast" : "smart"] || [])];
@@ -185,6 +199,8 @@ async function plan(T: any, st: any, keys: Keys) {
   ].filter((x) => x !== "").join("\n");
   const c = await callModel("smart", persona(pm) + "\n你是项目经理，负责把 Dave 发布的任务拆给合适的部门和成员。", user, 3000, st, keys);
   await logCall(c, pm?.id || null, T.id, "plan", st);
+  // 拆解被截断时 JSON 基本是残的，parseJSON 会抛一个看不懂的错，这里先说清楚真正的原因
+  if (c.cut) throw new Error("项目经理的拆解写到长度上限被截断了，没拿到完整的 JSON");
   const p = parseJSON(c.text);
   const steps = (Array.isArray(p.steps) ? p.steps : []).slice(0, 6);
   if (!steps.length) throw new Error("项目经理没有拆出步骤");
@@ -242,10 +258,14 @@ async function execute(s: any, st: any, keys: Keys) {
   try {
     const c = await callModel(a && SMART_ROLES.has(a.role) ? "smart" : "fast", system, user, 6000, st, keys);
     const rm = await logCall(c, a?.id || null, T.id, "execute", st);
+    // 写到上限被掐断的，照样留下已写的部分（扔掉更浪费），但必须标出来：
+    // error 字段给前端看，正文末尾的标记给验收的项目经理看。
     await db.from("subtasks").update({
-      status: "done", output: c.text, model: c.model, cost: +s.cost + rm, finished_at: new Date().toISOString(), error: null,
+      status: "done", model: c.model, cost: +s.cost + rm, finished_at: new Date().toISOString(),
+      output: c.cut ? `${c.text}\n\n⚠️ ${CUT_NOTE}` : c.text,
+      error: c.cut ? CUT_NOTE : null,
     }).eq("id", s.id);
-    await say(T.id, a?.id || null, `完成「${s.title}」`, c.model);
+    await say(T.id, a?.id || null, c.cut ? `完成「${s.title}」（交付被截断，不完整）` : `完成「${s.title}」`, c.model);
     await remember(a?.id, `完成「${T.title}」中的「${s.title}」：${cut(c.text.replace(/\s+/g, " "), 160)}`);
   } catch (e) {
     const msg = (e as Error).message;
@@ -276,13 +296,17 @@ async function saveToDrive(taskId: string): Promise<string | null> {
 // ---------- 3. review & conclude ----------
 async function conclude(T: any, st: any, keys: Keys) {
   const as = await agents(); const pm = pickPM(as);
-  const { data: subs } = await db.from("subtasks").select("title,output,agent_id").eq("task_id", T.id).order("seq");
-  const body = (subs || []).map((s: any) => `【${s.title}｜${as.find((a) => a.id === s.agent_id)?.name || ""}】\n${cut(s.output, 2500)}`).join("\n\n");
+  const { data: subs } = await db.from("subtasks").select("title,output,agent_id,error").eq("task_id", T.id).order("seq");
+  // 截断标记写在标题行，不能只靠正文末尾的 —— 下面 cut(s.output, 2500) 会把末尾裁掉。
+  const body = (subs || []).map((s: any) =>
+    `【${s.title}｜${as.find((a) => a.id === s.agent_id)?.name || ""}${s.error ? ` ⚠️ ${s.error}` : ""}】\n${cut(s.output, 2500)}`).join("\n\n");
+  const anyCut = (subs || []).some((s: any) => s.error);
   const c = await callModel("smart", persona(pm) + "\n你是项目经理，负责验收并向 Dave 汇报。",
-    `任务：${T.title}\n补充要求：${T.description || "无"}\n\n各成员交付：\n${body}\n\n用 3–6 句话告诉 Dave：做成了什么、关键产出、风险或需要他知道的事。不要客套，不要重复全文。`,
+    `任务：${T.title}\n补充要求：${T.description || "无"}\n\n各成员交付：\n${body}\n\n用 3–6 句话告诉 Dave：做成了什么、关键产出、风险或需要他知道的事。不要客套，不要重复全文。`
+    + (anyCut ? "\n\n注意：上面带 ⚠️ 的交付是残的，不要当成完整内容验收，必须在结论里明确告诉 Dave 哪一步不完整。" : ""),
     1500, st, keys);
   await logCall(c, pm?.id || null, T.id, "review", st);
-  const conclusion = c.text;
+  const conclusion = c.cut ? `${c.text}\n\n⚠️ 这份验收结论本身也被截断了，不是完整的。` : c.text;
   await say(T.id, pm?.id || null, `验收结论：${conclusion}`, c.model);
   await remember(pm?.id, `验收「${T.title}」：${cut(conclusion, 160)}`);
   await db.from("tasks").update({ conclusion }).eq("id", T.id);

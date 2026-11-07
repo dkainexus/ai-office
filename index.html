@@ -104,6 +104,7 @@ details.done .card{opacity:.85;margin-top:8px}
 .subs div{display:grid;grid-template-columns:52px 1fr auto;gap:6px;font-size:12px;align-items:center}
 .subs .d{font-weight:700;color:var(--ink-2)}
 .subs .s{font-size:11px;padding:1px 6px;border-radius:4px;background:var(--paper-2)}
+.subs .serr{display:block;font-size:11.5px;line-height:1.45;color:var(--bad);padding:0 0 2px 58px}
 .subs .s.doing{background:#e5ecfb;color:var(--cobalt)} .subs .s.done{background:#e2f2e8;color:var(--ok)}
 .pform{display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--paper-2)}
 .pform input,.pform textarea,.pform select{border:1px solid var(--line);border-radius:7px;padding:8px 9px;font:13px var(--f-body);background:var(--paper);color:var(--ink)}
@@ -1537,7 +1538,7 @@ function renderTasks(force){
       return `<div class="card"><div class="meta"><span class="who">${esc(T.prio)}</span><span>· ${dl(T.day)} ${T.at} 发布</span><span>· ${ST[T.status]||T.status}</span></div>
       <h4>${esc(T.title)}</h4>${T.desc?`<p>${esc(T.desc)}</p>`:''}
       <div class="bar"><i style="width:${T.status==='done'?100:prog}%"></i></div>
-      ${T.subs.length?`<div class="subs">${T.subs.map(s=>`<div><span class="d">${esc(s.dept)}</span><span>${esc(s.agentName)}</span><span class="s ${s.status}">${{todo:'待开始',doing:'进行中',done:'完成',failed:'失败'}[s.status]||s.status}</span></div>${s.output?`<details class="deliv" data-sid="${s.id}"><summary>${esc(s.title)} · 查看交付${s.model?` · ${esc(s.model)}`:''}</summary><pre>${esc(s.output)}</pre></details>`:''}`).join('')}</div>`:''}
+      ${T.subs.length?`<div class="subs">${T.subs.map(s=>`<div><span class="d">${esc(s.dept)}</span><span>${esc(s.agentName)}</span><span class="s ${s.status}">${{todo:'待开始',doing:'进行中',done:'完成',failed:'失败'}[s.status]||s.status}</span></div>${s.err?`<div class="serr">⚠️ ${esc(s.err)}</div>`:''}${s.output?`<details class="deliv" data-sid="${s.id}"><summary>${esc(s.title)} · 查看交付${s.model?` · ${esc(s.model)}`:''}</summary><pre>${esc(s.output)}</pre></details>`:''}`).join('')}</div>`:''}
       ${T.real&&T.note&&T.status!=='done'?`<div class="meta">${esc(T.note)}</div>`:''}
       ${tlHTML(T)}
       <div class="meta">已花费 ${rm(T.cost)}</div>${T.conclusion?`<div class="rev">${esc(T.conclusion)}</div>`:''}${T.drive?`<a class="dlink" href="${esc(T.drive)}" target="_blank" rel="noopener">打开 Google Drive 文件夹 ↗</a>`:''}</div>`;}).join(''):'<div class="empty">还没有任务。</div>'}`;

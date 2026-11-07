@@ -29,6 +29,7 @@ npm run setup
 - **`checks/backend-real.js`** — 后台「登录后」渲染检查。`checks/run.js` 用 `file://` 打开页面，`REAL()` 永远是 false，后台登录后那半边代码一行都跑不到；这个检查把 `index.html` 复制一份打补丁后喂固定假数据，断言页面只显示真实数据、不混入任何 3D 演示用的模拟数字。不连 Supabase，不碰线上。
 - **`checks/real-views.js`** — 登录后「任务卡」和「员工抽屉」的渲染检查。同样打补丁喂假数据，断言任务卡的「过程与花费」把 `messages` 和 `model_calls` 原样显示出来、合计对得上，员工抽屉的记忆来自 `agent_memories`、统计等于表里的聚合，并且不出现演示用的记忆格式。
 - **`checks/approval.js`** — 判断「这个任务要不要 Dave 亲自审批」的逻辑检查。直接从 `supabase/functions/runtime/index.ts` 抠出实际代码来跑，改了 runtime 就会在这里反映出来。
+- **`checks/truncation.js`** — 判断「模型这次写完了，还是写到上限被掐断」的逻辑检查。同样直接从 `supabase/functions/runtime/index.ts` 抠出实际代码来跑。漏判比误判危险：漏判就是拿残稿当成品交付。
 - **`checks/schema-rebuild.js`** — 数据库基线重建检查。起一个全新的空 Postgres，把 `supabase/schema/` 的基线真跑一遍，再数建出来的表/函数/策略对不对得上线上。本机没装 Postgres（或装了跑不起来）就跳过，不算失败。
 
 ## 后台

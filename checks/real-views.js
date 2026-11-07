@@ -24,6 +24,8 @@ const TASK = {
   note: "", drive: "",
   subs: [
     { id: "s1", dept: "运营", title: "拉取并分类工单", agentId: "a2", agentName: "林薇", status: "done", output: "共 142 条，按原因分 7 类。", model: "gpt-5-mini", err: "", seq: 1, task: "t-fix-001", real: true },
+    // 被截断的那一步：状态仍是 done，但必须在卡上看得见残缺
+    { id: "s2", dept: "技术", title: "复核准确性", agentId: "a3", agentName: "阿杰", status: "done", output: "第 1 条：…", model: "claude-sonnet-5-5", err: "这一步的交付在写到长度上限时被掐断，不是完整内容。", seq: 2, task: "t-fix-001", real: true },
   ],
   msgs: [
     { who: "陈默", txt: "拆解「整理九月投诉工单」：先分类再归因\n1. 拉取并分类工单 → 林薇", model: "claude-sonnet-5-5", at: "10:31" },
@@ -55,6 +57,7 @@ const WANT = [
   ["抽屉·真实记忆", /共 142 条，按原因分 7 类/],
   ["抽屉·完成步骤数", /完成步骤[\s\S]{0,20}3 个 · 失败 1 个/],
   ["抽屉·累计花费", /累计花费[\s\S]{0,20}5 次调用 · RM 0\.43/],
+  ["截断的步骤要看得见", /⚠️ 这一步的交付在写到长度上限时被掐断/],
 ];
 const FORBID = [
   ["演示记忆格式残留", /D20764/],
