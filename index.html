@@ -493,7 +493,7 @@ const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.setClearColor(0x000000,0);
 renderer.outputEncoding=THREE.sRGBEncoding;
-renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=0.86;
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 stage.appendChild(renderer.domElement);
 const scene=new THREE.Scene();
@@ -504,13 +504,15 @@ const camera=new THREE.PerspectiveCamera(36,1,0.3,400);
 camera.position.set(0,60,70);
 const controls=new THREE.OrbitControls(camera,renderer.domElement);
 controls.enableDamping=true;controls.maxPolarAngle=1.28;controls.minDistance=6;controls.maxDistance=160;
-const hemi=new THREE.HemisphereLight(0xe6f3ff,0x9a8f78,0.45);scene.add(hemi);
-const sun=new THREE.DirectionalLight(0xfff0dc,1.55);sun.castShadow=true;sun.shadow.mapSize.set(innerWidth<820?2048:4096,innerWidth<820?2048:4096);Object.assign(sun.shadow.camera,{left:-55,right:55,top:55,bottom:-55,near:1,far:260});sun.shadow.bias=-0.0004;sun.shadow.normalBias=0.02;
+const hemi=new THREE.HemisphereLight(0xe6f3ff,0x9a8f78,0.26);scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xffeccd,2.0);sun.castShadow=true;sun.shadow.mapSize.set(innerWidth<820?2048:4096,innerWidth<820?2048:4096);Object.assign(sun.shadow.camera,{left:-55,right:55,top:55,bottom:-55,near:1,far:260});sun.shadow.camera.updateProjectionMatrix();sun.shadow.bias=-0.0004;sun.shadow.normalBias=0.02;
 scene.add(sun);scene.add(sun.target);
 function setShadow(r,px,py,pz){Object.assign(sun.shadow.camera,{left:-r,right:r,top:r,bottom:-r,near:1,far:py*3});sun.shadow.camera.updateProjectionMatrix();sun.position.set(px,py,pz);sun.target.position.set(0,0,0);}
 
 const matCache={},geoCache={};
-const mat=(c,o)=>{if(o&&('noCast' in o||'m' in o)){o=Object.assign({},o);delete o.noCast;delete o.m;if(!Object.keys(o).length)o=null;}const k=c+'|'+(o?JSON.stringify(o):'');return matCache[k]||(matCache[k]=new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.7,metalness:0},o||{})));};
+// RoomEnvironment 很亮；强度压低才有明暗层次，否则画面被照平
+const ENVI=0.45;
+const mat=(c,o)=>{if(o&&('noCast' in o||'m' in o)){o=Object.assign({},o);delete o.noCast;delete o.m;if(!Object.keys(o).length)o=null;}const k=c+'|'+(o?JSON.stringify(o):'');return matCache[k]||(matCache[k]=new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.7,metalness:0,envMapIntensity:ENVI},o||{})));};
 const cachedGeos=new Set();const geo=(k,f)=>{if(!geoCache[k]){geoCache[k]=f();cachedGeos.add(geoCache[k]);}return geoCache[k];};
 const rgeo=(w,h,d,r)=>geo(`rb${w}_${h}_${d}_${r}`,()=>new THREE.RoundedBoxGeometry(w,h,d,2,Math.min(r,w/2-0.001,h/2-0.001,d/2-0.001)));
 const bgeo=(w,h,d)=>geo(`b${w}_${h}_${d}`,()=>new THREE.BoxGeometry(w,h,d));
@@ -663,7 +665,7 @@ const TX={
   grass:()=>ctex('grass',512,(g,s,R)=>{g.fillStyle='#8cc178';g.fillRect(0,0,s,s);for(let i=0;i<9000;i++){g.fillStyle=['#7fb66b','#99ca83','#86bb70','#a3d18c'][Math.floor(R()*4)];g.fillRect(R()*s,R()*s,2,4);}}),
   slats:b=>ctex('slat'+b,256,(g,s,R)=>{g.fillStyle=sh(b,-.4);g.fillRect(0,0,s,s);for(let x=0;x<s;x+=16){g.fillStyle=sh(b,(R()-.5)*.12);g.fillRect(x+2,0,12,s);}})
 };
-const texMat=(kind,base,o)=>{const k='T'+kind+base+JSON.stringify(o||{});return matCache[k]||(matCache[k]=new THREE.MeshStandardMaterial(Object.assign({map:TX[kind](base),roughness:.75},o||{})));};
+const texMat=(kind,base,o)=>{const k='T'+kind+base+JSON.stringify(o||{});return matCache[k]||(matCache[k]=new THREE.MeshStandardMaterial(Object.assign({map:TX[kind](base),roughness:.75,envMapIntensity:ENVI},o||{})));};
 function uvs(geo,sx,sy){const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*sx,uv.getY(i)*sy);return geo;}
 function tplane(p,x1,z1,x2,z2,m,y,tile){const o=new THREE.Mesh(uvs(new THREE.PlaneGeometry(x2-x1,z2-z1),(x2-x1)/tile,(z2-z1)/tile),m);o.rotation.x=-Math.PI/2;o.position.set((x1+x2)/2,y||0.01,(z1+z2)/2);o.receiveShadow=true;p.add(o);return o;}
 function tbox(p,w,h,d,m,x,y,z,tile,cast){const o=new THREE.Mesh(uvs(new THREE.BoxGeometry(w,h,d),Math.max(w,d)/tile,h/tile),m);o.position.set(x,y,z);o.castShadow=!!cast;o.receiveShadow=true;p.add(o);return o;}
@@ -804,7 +806,15 @@ function gwall(g,x1,z1,x2,z2,frame){const hz=Math.abs(z2-z1)<0.01,len=Math.hypot
   box(g,hz?len:0.08,0.07,hz?0.08:len,frame,cx,2.42,cz,{noCast:true});box(g,hz?len:0.08,0.07,hz?0.08:len,frame,cx,0.04,cz,{noCast:true});
   for(let k=0;k<=Math.round(len/2.4);k++){const f=k/Math.max(1,Math.round(len/2.4));box(g,0.06,2.4,0.06,frame,hz?x1+(x2-x1)*f:cx,1.2,hz?cz:z1+(z2-z1)*f,{noCast:true});}}
 function chairOffice(g,x,z,rot,c){const ch=new THREE.Group();ch.position.set(x,0,z);ch.rotation.y=rot;g.add(ch);c=c||'#3a4450';
-  rbox(ch,0.52,0.1,0.5,0.05,c,0,0.46,0);rbox(ch,0.5,0.55,0.08,0.04,c,0,0.78,0.24);cyl(ch,0.035,0.035,0.38,'#9aa3ab',0,0.24,0,{metalness:.6,roughness:.3});
+  rbox(ch,0.52,0.1,0.5,0.05,c,0,0.46,0);
+  // 椅背：中段 + 两片外折侧翼，拼出微曲面（侧翼与背框用 box，12 面/个，比圆角盒便宜一个数量级）
+  rbox(ch,0.3,0.55,0.07,0.03,c,0,0.78,0.245);
+  [-1,1].forEach(s=>{const w=box(ch,0.12,0.5,0.055,c,s*0.195,0.78,0.236);w.rotation.y=-s*0.3;});
+  box(ch,0.46,0.045,0.06,'#5b646d',0,1.055,0.243,{noCast:true});
+  // 扶手：立柱 + 扶手板
+  [-1,1].forEach(s=>{box(ch,0.042,0.17,0.042,'#5b646d',s*0.272,0.575,0.07);
+    box(ch,0.07,0.032,0.22,'#5b646d',s*0.272,0.675,0.025);});
+  cyl(ch,0.035,0.035,0.38,'#9aa3ab',0,0.24,0,{metalness:.6,roughness:.3});
   for(let i=0;i<5;i++){const a=i/5*Math.PI*2;const l=box(ch,0.04,0.03,0.3,'#5b646d',Math.sin(a)*0.15,0.04,Math.cos(a)*0.15);l.rotation.y=a;}}
 function lampPend(g,x,z,c){cyl(g,0.008,0.008,0.75,'#2a2f35',x,2.72,z);const sh2=new THREE.Mesh(geo('lampc',()=>new THREE.ConeGeometry(0.24,0.26,24,1,true)),new THREE.MeshStandardMaterial({color:c,roughness:.4,side:THREE.DoubleSide}));put(sh2,x,2.24,z,g,false);sphere(g,0.07,'#fff3d6',x,2.16,z,{emissive:'#ffe3b0',emissiveIntensity:1.6});}
 function deskSet(g,d,A,chairC){
@@ -814,8 +824,16 @@ function deskSet(g,d,A,chairC){
   else{[[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([a,b])=>box(g,0.05,0.72,0.05,'#2a2f35',x+a*0.68,0.36,zd+b*0.31));rbox(g,1.5,0.44,0.04,0.02,A,x,0.98,zd-0.39,{roughness:.9});}
   (d.dual?[-0.33,0.33]:[0]).forEach(o=>{rbox(g,0.62,0.38,0.035,0.02,'#1c2329',x+o,1.06,zd-0.22);const s=new THREE.Mesh(bgeo(0.56,0.32,0.005),screenM);put(s,x+o,1.06,zd-0.2,g,false);});
   cyl(g,0.02,0.02,0.2,'#2a2f35',x,0.86,zd-0.23);rbox(g,0.42,0.02,0.14,0.008,'#e9ecee',x,0.785,zd+0.1);
+  if(!ex){ // 桌下抽屉柜 + 理线槽：全部用 box（12 面/个），几乎不增加开销
+    const px=x+(d.n%2?-0.52:0.52);
+    box(g,0.36,0.56,0.5,'#e9ecee',px,0.28,zd+0.08);
+    [0,1,2].forEach(k=>box(g,0.33,0.015,0.02,'#c9ced2',px,0.12+k*0.17,zd+0.335,{noCast:true}));
+    box(g,1.3,0.07,0.08,'#2a2f35',x,0.63,zd-0.3,{noCast:true});
+  }
   if(d.n%3===0)cyl(g,0.04,0.035,0.1,'#f4f4f1',x+0.55,0.82,zd+0.15);
   if(d.n%4===1){cyl(g,0.07,0.06,0.12,'#e2d6c2',x-0.6,0.83,zd-0.15);leaf(g,0.1,'#5f9e4f',x-0.6,0.96,zd-0.15);}
+  if(d.n%5===2){box(g,0.2,0.006,0.27,'#fbfaf6',x-0.48,0.775,zd+0.14,{noCast:true});box(g,0.14,0.005,0.19,'#edeae2',x-0.5,0.781,zd+0.12,{noCast:true});}
+  if(d.n%7===3){box(g,0.3,0.012,0.21,'#b9c0c6',x+0.46,0.778,zd+0.06,{noCast:true});const lid=box(g,0.3,0.19,0.012,'#cfd5da',x+0.46,0.87,zd-0.04,{noCast:true});lid.rotation.x=-0.28;}
   chairOffice(g,x,zd+0.85,0,chairC);
   lampPend(g,x,zd,'#1c2329');
 }
@@ -1533,24 +1551,50 @@ function renderBuildings(){
 $('#pane-bld').addEventListener('click',e=>{const f=e.target.closest('[data-floor]');if(f){focusFloor(f.dataset.floor);return;}const ed=e.target.closest('[data-edit]');if(ed){openBModal(S.buildings.find(b=>b.id===ed.dataset.edit));return;}if(e.target.closest('#bNew2'))openBModal(null);});
 
 function busy(id){const a=document.activeElement;return a&&a!==document.body&&$(id).contains(a)&&/INPUT|TEXTAREA|SELECT/.test(a.tagName);}
+/* 登录后，后台只显示 Supabase 里的真实数据；演示用的模拟模型、路由和金库只在未登录的展示模式出现 */
+const PUR={plan:['拆解','decide'],execute:['执行','downgrade'],review:['验收','approve']};
+const taskName=id=>{const T=S.tasks.find(t=>t.id===id);return T?T.title:'';};
+function realModelsHTML(){
+  const st=BUD.st||{},mc=BUD.calls||[],agg={};
+  mc.forEach(c=>{const k=c.model||'—';const a=agg[k]||(agg[k]={n:0,rm:0,ti:0,to:0,host:c.host});a.n++;a.rm+=+c.cost||0;a.ti+=c.tokens_in||0;a.to+=c.tokens_out||0;});
+  const rows=Object.entries(agg).sort((a,b)=>b[1].rm-a[1].rm);
+  const chain=t=>((st.models||{})[t]||[]).map(r=>esc(r.split(':')[1]||r)).join(' → ')||'未配置';
+  return `<div class="h">模型用量（真实，最近 ${mc.length} 次调用）</div>
+  ${rows.length?rows.map(([m,v])=>`<div class="mrow"><b>${esc(m)}</b><span class="m2">${v.host==='anthropic'?'Claude':'GPT'} · ${v.n} 次 · RM ${v.rm.toFixed(2)} · 输入 ${v.ti.toLocaleString()} / 输出 ${v.to.toLocaleString()} tokens</span></div>`).join(''):'<div class="empty">还没有真实调用。到「任务」发一个任务就会有。</div>'}
+  <div class="h">调用路由（后台实际配置，从左到右依次尝试）</div>
+  <dl class="routes"><dt>重要 / 技术</dt><dd>${chain('smart')}</dd><dt>日常</dt><dd>${chain('fast')}</dd></dl>
+  <div class="h">调用记录</div>
+  <div class="pmlog">${mc.slice(0,18).map(c=>{const p=PUR[c.purpose]||[esc(c.purpose),'decide'],t=taskName(c.task_id);
+    return `<div><time>${hm(c.created_at)}</time><span class="k ${p[1]}">${p[0]}</span><span>${esc(c.model)} · RM ${(+c.cost).toFixed(4)}${t?' · '+esc(t):''}</span></div>`;}).join('')||'<div class="empty">还没有记录</div>'}</div>`;
+}
+function realVaultHTML(){
+  const mc=BUD.calls||[],byHost={anthropic:0,openai:0};mc.forEach(c=>{if(byHost[c.host]!=null)byHost[c.host]++;});
+  const USE={p_claude_key:'anthropic',p_openai_key:'openai'};
+  return `<div class="rule">这是后台金库里真实登记的凭证。明文只存在后台，网页和 Agent 都取不到，只能替换。模型 Key 的调用次数来自真实调用流水；其他凭证后台暂时没有计数。</div>
+  ${(BUD.vault||[]).map(v=>{const u=USE[v.id];
+    return `<div class="vitem"><div class="vt"><b>${esc(v.name)}</b><span class="mask">••••••••</span></div>
+    <div class="meta"><span class="chip">${esc(v.kind)}</span>${v.needs_approval?'<span class="lock">每次需批准</span>':''}</div>
+    <div class="meta">${u?`最近 ${mc.length} 次模型调用里，这把 Key 用了 ${byHost[u]} 次`:'后台暂未统计这类凭证的使用次数'}</div></div>`;}).join('')||'<div class="empty">金库里还没有凭证。</div>'}`;
+}
 function renderBack(force){
   if($('#pane-back').hidden||(!force&&busy('#pane-back')))return;
+  const R=!!(REAL()&&BUD);
   const tot=S.cost.self+S.cost.cloud;const roleOpts=Object.entries(ROLES).map(([k,r])=>`<label><input type="checkbox" value="${k}" name="vr">${r.label}</label>`).join('');
   $('#pane-back').innerHTML=`${budgetHTML()}${upgradeHTML()}
-  <div class="server"><div><b>自建 GPU 服务器</b><br><span>${S.selfOnline?'在线 · 开源文本 / 图像 / 视频模型优先':'离线 · 请求已自动切到云端备用'}</span></div><button class="tg ${S.selfOnline?'on':''}" id="srvTg" aria-label="切换自建服务器在线状态"></button></div>
-  <div class="kpis"><div class="kpi"><span>今日花费</span><b>${rm(tot)}</b></div><div class="kpi"><span>自建占比</span><b>${selfShare()}%</b></div><div class="kpi"><span>本月预算</span><b>${Math.round(S.budget.used/S.budget.cap*100)}%</b></div></div>
-  <div class="h">模型（费用为估算，可在后台配置）</div>
+  ${R?'':`<div class="server"><div><b>自建 GPU 服务器</b><br><span>${S.selfOnline?'在线 · 开源文本 / 图像 / 视频模型优先':'离线 · 请求已自动切到云端备用'}</span></div><button class="tg ${S.selfOnline?'on':''}" id="srvTg" aria-label="切换自建服务器在线状态"></button></div>
+  <div class="kpis"><div class="kpi"><span>今日花费</span><b>${rm(tot)}</b></div><div class="kpi"><span>自建占比</span><b>${selfShare()}%</b></div><div class="kpi"><span>本月预算</span><b>${Math.round(S.budget.used/S.budget.cap*100)}%</b></div></div>`}
+  ${R?realModelsHTML():`<div class="h">模型（演示数据，费用为估算）</div>
   ${S.models.map(m=>`<div class="mrow"><b>${esc(m.name)}</b><button class="tg ${m.on?'on':''}" data-mtg="${m.id}" aria-label="启用或停用 ${esc(m.name)}"></button><span class="m2">${{text:'文本',video:'视频',image:'图像'}[m.kind]} · ${m.host==='self'?'自建':'云端'} · ${rm(m.cost)}/次 · ${m.note} · 已调用 ${m.calls} 次</span></div>`).join('')}
-  <div class="h">调用路由（从左到右依次尝试）</div>
+  <div class="h">调用路由（演示，从左到右依次尝试）</div>
   <dl class="routes">${Object.values(ROUTES).map(r=>`<dt>${r.label}</dt><dd>${r.chain.map(id=>esc(modelById(id).name)).join(' → ')}</dd>`).join('')}</dl>
-  <div class="h">项目经理审核记录</div>
-  <div class="pmlog">${S.pmLog.slice(-18).reverse().map(l=>`<div><time>${l.t}</time><span class="k ${l.k}">${{approve:'批准',downgrade:'降级',anomaly:'异常',block:'拒绝',decide:'决定'}[l.k]}</span><span>${esc(l.txt)}</span></div>`).join('')||'<div class="empty">还没有记录</div>'}</div>
+  <div class="h">项目经理审核记录（演示）</div>
+  <div class="pmlog">${S.pmLog.slice(-18).reverse().map(l=>`<div><time>${l.t}</time><span class="k ${l.k}">${{approve:'批准',downgrade:'降级',anomaly:'异常',block:'拒绝',decide:'决定'}[l.k]}</span><span>${esc(l.txt)}</span></div>`).join('')||'<div class="empty">还没有记录</div>'}</div>`}
   <div class="h">插件与机器人</div>
   <div class="rule">${authed?'<b>后台已连接。</b>这里填的密钥会直接存进后台金库，保存后页面和 Agent 都看不到明文，只能替换。':'<b>后台未连接。</b>登录后才能保存密钥。'}需要登录授权的插件，点「去授权」用你的账号登录一次即可。Agent 发现缺少某个平台的插件时，会自动开发并出现在这里，等你登录授权。</div>
   ${S.plugins.map(pl=>`<div class="vitem"><div class="vt"><b>${esc(pl.name)}</b><span class="lock">${esc(pl.status)}</span></div><div class="meta">${esc(pl.desc)}</div>${pl.by?`<div class="meta">${esc(pl.by)}</div>`:''}
     ${pl.fields?pl.fields.map(([k,l])=>`<input type="password" class="pin" id="pl-${pl.id}-${k}" placeholder="${l}${pl.status==='已配置'||pl.status==='已授权'?'（已保存，输入新值可替换）':''}" aria-label="${l}" autocomplete="off" ${authed?'':'disabled'}>`).join('')+`<button class="btn ghost sm" data-plsave="${pl.id}" ${authed?'':'disabled'}>保存到金库</button>`+(pl.kind==='oauth'?`<button class="btn primary sm" data-plauth="${pl.id}" ${authed&&(pl.status==='已配置'||pl.status==='已授权')?'':'disabled'}>${pl.status==='已授权'?'重新授权':'去授权（用你的 Google 账号登录一次）'}</button>`:''):'<button class="btn ghost sm" disabled>去授权（下一步接入）</button>'}</div>`).join('')}
   <div class="h">金库</div>
-  <div class="rule">密钥只存在后台金库。Agent 只能请求调用，由后台代为注入凭证，Agent 看不到明文。标记为“每次需批准”的凭证，必须在你批准相关事项后才会使用。这个页面不保存任何真实密钥。</div>
+  ${R?realVaultHTML():`<div class="rule">密钥只存在后台金库。Agent 只能请求调用，由后台代为注入凭证，Agent 看不到明文。标记为“每次需批准”的凭证，必须在你批准相关事项后才会使用。下面是演示清单，这个页面不保存任何真实密钥。</div>
   ${S.vault.map(v=>`<div class="vitem"><div class="vt"><b>${esc(v.name)}</b><span class="mask">••••••••</span><button class="del" data-vdel="${v.id}">移除</button></div>
     <div class="meta"><span class="chip">${esc(v.kind)}</span>${v.approval?'<span class="lock">每次需批准</span>':''}${v.roles.length===Object.keys(ROLES).length?'<span class="chip">全部职位</span>':v.roles.map(k=>`<span class="chip">${ROLES[k]?ROLES[k].label:k}</span>`).join('')}</div>
     <div class="meta">已调用 ${v.uses||0} 次${v.last?' · 最近：'+esc(v.last):''}</div></div>`).join('')}
@@ -1559,7 +1603,7 @@ function renderBack(force){
     <select id="vKind" aria-label="凭证类型"><option>API Key</option><option>登录账号</option><option>OAuth Token</option><option>数据库连接</option></select>
     <div class="checks">${roleOpts}</div>
     <label class="checks"><input type="checkbox" id="vAppr"> 每次调用都需要我批准</label>
-    <button class="btn ghost" type="submit">登记到金库</button></form>`;
+    <button class="btn ghost" type="submit">登记到金库</button></form>`}`;
 }
 async function refreshSecretStatus(){if(!sbc||!authed)return;try{const {data}=await sbc.rpc('secret_status');const ok=new Set((data||[]).filter(x=>x.configured).map(x=>x.item_id));
   S.plugins.forEach(pl=>{if(pl.fields&&pl.fields.every(([k])=>ok.has(`${pl.id}_${k}`)))pl.status=ok.has(`${pl.id}_refresh`)?'已授权':'已配置';});
@@ -1614,9 +1658,12 @@ let BUD=null;
 async function loadBudget(){if(!REAL())return;
   try{const [st,m,d,lg]=await Promise.all([sbc.from('runtime_settings').select('data').eq('id',1).maybeSingle(),sbc.rpc('rt_month_spend'),sbc.rpc('rt_day_spend'),
       sbc.from('budget_log').select('*').order('created_at',{ascending:false}).limit(30)]);
-    const [up,fb]=await Promise.all([sbc.from('upgrade_proposals').select('*').order('created_at',{ascending:false}).limit(12),
-      sbc.from('feedback').select('*').eq('status','open').order('created_at',{ascending:false}).limit(12)]);
-    BUD={st:(st.data&&st.data.data)||{},month:+m.data||0,day:+d.data||0,log:lg.data||[],ups:up.data||[],fb:fb.data||[]};renderBack();}catch(e){console.warn('budget',e&&e.message);}}
+    const [up,fb,mc,vi]=await Promise.all([sbc.from('upgrade_proposals').select('*').order('created_at',{ascending:false}).limit(12),
+      sbc.from('feedback').select('*').eq('status','open').order('created_at',{ascending:false}).limit(12),
+      // 真实调用流水与金库清单；只取非机密字段，secret_id 永不下发到前端
+      sbc.from('model_calls').select('model,host,purpose,cost,tokens_in,tokens_out,task_id,created_at').order('created_at',{ascending:false}).limit(60),
+      sbc.from('vault_items').select('id,name,kind,needs_approval,uses,last_used_at').order('id')]);
+    BUD={st:(st.data&&st.data.data)||{},month:+m.data||0,day:+d.data||0,log:lg.data||[],ups:up.data||[],fb:fb.data||[],calls:mc.data||[],vault:vi.data||[]};renderBack();}catch(e){console.warn('budget',e&&e.message);}}
 function budgetHTML(){if(!REAL())return '';if(!BUD)return '<div class="h">预算</div><div class="empty">载入中…</div>';
   const st=BUD.st,cap=+st.monthly_cap_rm||0,pct=cap?Math.round(BUD.month/cap*100):0;
   const K={set_monthly:'改月上限',set_task:'改单任务上限',set_task_topup:'改单任务追加额',set_month_topup:'改月追加额',topup_task:'任务追加',topup_month:'月度追加'};
@@ -1676,7 +1723,8 @@ $('#pane-back').addEventListener('click',async e=>{
   const m=e.target.closest('[data-mtg]');if(m){const x=modelById(m.dataset.mtg);x.on=!x.on;renderBack(true);save();return;}
   const d=e.target.closest('[data-vdel]');if(d){const v=S.vault.find(x=>x.id===d.dataset.vdel);S.vault=S.vault.filter(x=>x!==v);addLog(`你从金库移除了「${v.name}」`);renderBack(true);save();}
 });
-$('#pane-back').addEventListener('submit',e=>{e.preventDefault();const name=$('#vName').value.trim();if(!name)return;const roles=$$('input[name=vr]:checked').map(x=>x.value);
+// 这个监听器挂在整个后台面板上，预算表单和反馈表单的提交也会进来；登录后金库表单不存在，必须先认表单 id
+$('#pane-back').addEventListener('submit',e=>{if(e.target.id!=='vForm')return;e.preventDefault();const name=$('#vName').value.trim();if(!name)return;const roles=$$('input[name=vr]:checked').map(x=>x.value);
   S.vault.push({id:'v'+uid(),name,kind:$('#vKind').value,roles,approval:$('#vAppr').checked,uses:0});addLog(`你在金库登记了「${name}」`);renderBack(true);save();});
 function renderLog(){const el=$('#log');el.innerHTML=S.log.slice().reverse().map(l=>`<div><time>${l.t}</time><span class="${l.hl?'hl':''}">${esc(l.txt)}</span></div>`).join('')||'<div class="empty">还没有动态</div>';}
 function refreshLive(){
