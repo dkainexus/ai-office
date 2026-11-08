@@ -10,12 +10,14 @@
 
 | 项目 | 值 |
 |---|---|
-| GitHub 仓库 | `dkainexus/ai-office`（`main` 推送后 Vercel 自动部署正式版） |
-| 正式网址 | https://office.dkglobal.group （需要登录） |
-| Vercel | team `team_Rg7PiiNKTvwWjrqIFnWs3nVb`，项目 `ai-office` |
+| GitHub 仓库 | `mrdcover/ai-office`（`main` 推送后 Vercel 自动部署正式版）。本地 remote 写的是 `dkainexus/ai-office`，那是 GitHub 的改名重定向；**调 Vercel API 必须用 `mrdcover/ai-office`**，用重定向那个名字会报「GitHub 集成没装」 |
+| 正式网址（前台 3D） | https://office.dkainexus.com （需要登录） |
+| 正式网址（后台） | https://admin.dkainexus.com |
+| 登录账号 | 用户名拼成 `<用户名>@office.dkglobal.group`。**这是旧域名，而且必须保持旧域名** —— 它是 Supabase auth 里账号记录的一部分，不是网址。改了 Owner 就登不进来 |
+| Vercel | team `team_Rg7PiiNKTvwWjrqIFnWs3nVb`；前台项目 `ai-office`（纯静态，根目录），后台项目 `ai-office-admin`（Next.js，根目录 `admin/`） |
 | Supabase | 项目 `nabuuerjahwjsxsfgiuy`（新加坡） |
 | Edge Functions | 源码在 `supabase/functions/<name>/index.ts`，用 Supabase 的 deploy_edge_function 部署，`verify_jwt: false`（函数自己验身份） |
-| 上线前检查 | `node checks/run.js`（本地页面）/ `node checks/run.js --url https://office.dkglobal.group`（线上） |
+| 上线前检查 | `node checks/run.js`（本地页面）/ `node checks/run.js --url https://office.dkainexus.com`（线上） |
 
 Supabase 里和升级有关的东西：
 
@@ -35,7 +37,7 @@ Supabase 里和升级有关的东西：
    - 检查里的性能上限就是「不能变慢」的标准，**不许为了通过去调高基线**。只有指标变好（更低）时才可以 `--update-baseline` 一起提交。
 5. 推送分支，等 Vercel 预览部署 READY（看构建日志没有错误）。
 6. 合并到 `main` 并推送，等正式部署 READY。改了 Edge Function 的，合并后立刻部署对应函数；改了数据库的，用迁移执行。
-7. 跑 `node checks/run.js --url https://office.dkglobal.group`。不通过就 `git revert` 合并提交并推送（Edge Function 也部署回旧版本），`upgrade_report(<id>, 'failed', '上线后检查没通过，已自动回滚：<原因>')`，结束。
+7. 跑 `node checks/run.js --url https://office.dkainexus.com`。不通过就 `git revert` 合并提交并推送（Edge Function 也部署回旧版本），`upgrade_report(<id>, 'failed', '上线后检查没通过，已自动回滚：<原因>')`，结束。
 8. `upgrade_report(<id>, 'shipped', '<一两句话：改了什么、怎么验证的>', '<commit sha>')`。
 
 ### B. 巡检（只在没有 pending / approved / building 的提案时做）

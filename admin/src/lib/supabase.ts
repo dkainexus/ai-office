@@ -12,6 +12,11 @@ if (!url || !key) {
 export const sb = createClient(url, key);
 
 // 3D 页用的是同一套凭据：用户名拼成 <用户名>@office.dkglobal.group
+//
+// 别动这个字符串。它不是网址，是 Supabase auth 里那条账号记录的一部分。
+// 办公室已经搬到 office.dkainexus.com，但账号还是建在旧域名上的，
+// 改成新域名就等于拿一个不存在的账号去登录，Owner 会被锁在外面。
+// 要换的话得先在 Supabase 改 auth.users 里的 email，再改这里和 index.html。
 export const EMAIL_DOMAIN = "office.dkglobal.group";
 
 export type Settings = {

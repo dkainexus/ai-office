@@ -87,7 +87,7 @@ export default function Shell({ children, title }: { children: React.ReactNode; 
         <div className="mt-8 border-t border-[var(--line)] pt-4 text-[11px] text-[var(--ink-2)]">
           <div className="mb-2">登录为 {who || "—"}</div>
           <button onClick={() => sb.auth.signOut()} className="underline hover:text-[var(--ink)]">退出</button>
-          <a href="https://office.dkglobal.group" className="mt-2 block underline hover:text-[var(--ink)]">
+          <a href="https://office.dkainexus.com" className="mt-2 block underline hover:text-[var(--ink)]">
             去 3D 办公室 ↗
           </a>
         </div>
